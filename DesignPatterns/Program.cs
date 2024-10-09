@@ -1,158 +1,205 @@
 ﻿using System;
 
-// The abstract factory interface declares a set of methods that
-// return different abstract products. These products are called
-// a family and are related by a high-level theme or concept.
-public interface IGUIFactory
+// The Car class represents a complex product. It may contain a variety of parts.
+public class Car
 {
-    IButton CreateButton();
-    ICheckbox CreateCheckbox();
-}
-
-// Concrete factories produce a family of products that belong
-// to a single variant. The factory guarantees that the
-// resulting products are compatible. Signatures of the concrete
-// factory's methods return an abstract product, while inside
-// the method a concrete product is instantiated.
-public class WinFactory : IGUIFactory
-{
-    public IButton CreateButton()
+    public void SetSeats(int number)
     {
-        return new WinButton();
+        // Set the number of seats in the car.
+        Console.WriteLine($"Setting {number} seats.");
     }
 
-    public ICheckbox CreateCheckbox()
+    public void SetEngine(string engine)
     {
-        return new WinCheckbox();
-    }
-}
-
-// Each concrete factory has a corresponding product variant.
-public class MacFactory : IGUIFactory
-{
-    public IButton CreateButton()
-    {
-        return new MacButton();
+        // Set the engine type.
+        Console.WriteLine($"Installing {engine} engine.");
     }
 
-    public ICheckbox CreateCheckbox()
+    public void SetTripComputer(bool hasTripComputer)
     {
-        return new MacCheckbox();
+        if (hasTripComputer)
+            Console.WriteLine("Installing trip computer.");
+        else
+            Console.WriteLine("No trip computer.");
+    }
+
+    public void SetGPS(bool hasGPS)
+    {
+        if (hasGPS)
+            Console.WriteLine("Installing GPS.");
+        else
+            Console.WriteLine("No GPS installed.");
     }
 }
 
-// Each distinct product of a product family should have a base
-// interface. All variants of the product must implement this
-// interface.
-public interface IButton
+// The Manual class represents a different product that describes a car's configuration.
+public class Manual
 {
-    void Paint();
-}
-
-// Concrete products are created by corresponding concrete
-// factories.
-public class WinButton : IButton
-{
-    public void Paint()
+    public void AddSeatsDocumentation(int number)
     {
-        // Render a button in Windows style.
-        Console.WriteLine("Rendering a button in Windows style.");
+        // Document car seat features.
+        Console.WriteLine($"Documenting {number} seats.");
+    }
+
+    public void AddEngineDocumentation(string engine)
+    {
+        // Document engine instructions.
+        Console.WriteLine($"Documenting {engine} engine.");
+    }
+
+    public void AddTripComputerDocumentation(bool hasTripComputer)
+    {
+        if (hasTripComputer)
+            Console.WriteLine("Documenting trip computer.");
+        else
+            Console.WriteLine("No trip computer documentation.");
+    }
+
+    public void AddGPSDocumentation(bool hasGPS)
+    {
+        if (hasGPS)
+            Console.WriteLine("Documenting GPS.");
+        else
+            Console.WriteLine("No GPS documentation.");
     }
 }
 
-public class MacButton : IButton
+// The builder interface specifies methods for creating the different parts of the product objects.
+public interface IBuilder
 {
-    public void Paint()
+    void Reset();
+    void SetSeats(int number);
+    void SetEngine(string engine);
+    void SetTripComputer(bool hasTripComputer);
+    void SetGPS(bool hasGPS);
+}
+
+// The concrete builder for creating Car objects.
+public class CarBuilder : IBuilder
+{
+    private Car car;
+
+    public CarBuilder()
     {
-        // Render a button in macOS style.
-        Console.WriteLine("Rendering a button in macOS style.");
+        this.Reset();
+    }
+
+    public void Reset()
+    {
+        this.car = new Car();
+    }
+
+    public void SetSeats(int number)
+    {
+        car.SetSeats(number);
+    }
+
+    public void SetEngine(string engine)
+    {
+        car.SetEngine(engine);
+    }
+
+    public void SetTripComputer(bool hasTripComputer)
+    {
+        car.SetTripComputer(hasTripComputer);
+    }
+
+    public void SetGPS(bool hasGPS)
+    {
+        car.SetGPS(hasGPS);
+    }
+
+    public Car GetProduct()
+    {
+        Car product = this.car;
+        this.Reset();
+        return product;
     }
 }
 
-// Here's the base interface of another product. All products
-// can interact with each other, but proper interaction is
-// possible only between products of the same concrete variant.
-public interface ICheckbox
+// The concrete builder for creating Manual objects.
+public class CarManualBuilder : IBuilder
 {
-    void Paint();
-}
+    private Manual manual;
 
-public class WinCheckbox : ICheckbox
-{
-    public void Paint()
+    public CarManualBuilder()
     {
-        // Render a checkbox in Windows style.
-        Console.WriteLine("Rendering a checkbox in Windows style.");
-    }
-}
-
-public class MacCheckbox : ICheckbox
-{
-    public void Paint()
-    {
-        // Render a checkbox in macOS style.
-        Console.WriteLine("Rendering a checkbox in macOS style.");
-    }
-}
-
-// The client code works with factories and products only
-// through abstract types: IGUIFactory, IButton, and ICheckbox. This
-// lets you pass any factory or product subclass to the client
-// code without breaking it.
-public class Application
-{
-    private IGUIFactory _factory;
-    private IButton _button;
-
-    public Application(IGUIFactory factory)
-    {
-        _factory = factory;
+        this.Reset();
     }
 
-    public void CreateUI()
+    public void Reset()
     {
-        _button = _factory.CreateButton();
+        this.manual = new Manual();
     }
 
-    public void Paint()
+    public void SetSeats(int number)
     {
-        _button.Paint();
+        manual.AddSeatsDocumentation(number);
+    }
+
+    public void SetEngine(string engine)
+    {
+        manual.AddEngineDocumentation(engine);
+    }
+
+    public void SetTripComputer(bool hasTripComputer)
+    {
+        manual.AddTripComputerDocumentation(hasTripComputer);
+    }
+
+    public void SetGPS(bool hasGPS)
+    {
+        manual.AddGPSDocumentation(hasGPS);
+    }
+
+    public Manual GetProduct()
+    {
+        Manual product = this.manual;
+        this.Reset();
+        return product;
     }
 }
 
-// The application picks the factory type depending on the
-// current configuration or environment settings and creates it
-// at runtime (usually at the initialization stage).
-public class ApplicationConfigurator
+// The Director is responsible for executing the building steps in a particular sequence.
+public class Director
+{
+    public void ConstructSportsCar(IBuilder builder)
+    {
+        builder.Reset();
+        builder.SetSeats(2);
+        builder.SetEngine("SportEngine");
+        builder.SetTripComputer(true);
+        builder.SetGPS(true);
+    }
+
+    public void ConstructSUV(IBuilder builder)
+    {
+        builder.Reset();
+        builder.SetSeats(5);
+        builder.SetEngine("SUVEngine");
+        builder.SetTripComputer(false);
+        builder.SetGPS(true);
+    }
+}
+
+// The client code creates a builder object, passes it to the Director, and then initiates the construction process.
+class Application
 {
     public static void Main(string[] args)
     {
-        // Simulate reading configuration
-        string configOS = ReadApplicationConfigFile();
+        Director director = new Director();
 
-        IGUIFactory factory;
+        // Create a car
+        CarBuilder carBuilder = new CarBuilder();
+        director.ConstructSportsCar(carBuilder);
+        Car car = carBuilder.GetProduct();
 
-        if (configOS == "Windows")
-        {
-            factory = new WinFactory();
-        }
-        else if (configOS == "Mac")
-        {
-            factory = new MacFactory();
-        }
-        else
-        {
-            throw new Exception("Error! Unknown operating system.");
-        }
+        // Create a manual for the car
+        CarManualBuilder manualBuilder = new CarManualBuilder();
+        director.ConstructSportsCar(manualBuilder);
+        Manual manual = manualBuilder.GetProduct();
 
-        Application app = new Application(factory);
-        app.CreateUI();
-        app.Paint();
-    }
-
-    private static string ReadApplicationConfigFile()
-    {
-        // For demonstration purposes, return either "Windows" or "Mac"
-        return "Windows"; // Change to "Mac" to simulate macOS version
+        // Output car details and manual creation to the console
+        Console.WriteLine("Car and Manual created.");
     }
 }

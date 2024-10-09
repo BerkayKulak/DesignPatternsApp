@@ -1,158 +1,145 @@
-﻿using System;
+﻿//using System;
 
-// The abstract factory interface declares a set of methods that
-// return different abstract products. These products are called
-// a family and are related by a high-level theme or concept.
-public interface IGUIFactory
-{
-    IButton CreateButton();
-    ICheckbox CreateCheckbox();
-}
+//// The creator class declares the factory method that must
+//// return an object of a product class. The creator's subclasses
+//// usually provide the implementation of this method.
+//abstract class Dialog
+//{
+//    // The creator may also provide some default implementation
+//    // of the factory method.
+//    public abstract IButton CreateButton();
 
-// Concrete factories produce a family of products that belong
-// to a single variant. The factory guarantees that the
-// resulting products are compatible. Signatures of the concrete
-// factory's methods return an abstract product, while inside
-// the method a concrete product is instantiated.
-public class WinFactory : IGUIFactory
-{
-    public IButton CreateButton()
-    {
-        return new WinButton();
-    }
+//    // Note that, despite its name, the creator's primary
+//    // responsibility isn't creating products. It usually
+//    // contains some core business logic that relies on product
+//    // objects returned by the factory method. Subclasses can
+//    // indirectly change that business logic by overriding the
+//    // factory method and returning a different type of product
+//    // from it.
+//    public void Render()
+//    {
+//        // Call the factory method to create a product object.
+//        IButton okButton = CreateButton();
+//        // Now use the product.
+//        okButton.OnClick(CloseDialog);
+//        okButton.Render();
+//    }
 
-    public ICheckbox CreateCheckbox()
-    {
-        return new WinCheckbox();
-    }
-}
+//    // Example of a callback
+//    public void CloseDialog()
+//    {
+//        Console.WriteLine("Dialog closed.");
+//    }
+//}
 
-// Each concrete factory has a corresponding product variant.
-public class MacFactory : IGUIFactory
-{
-    public IButton CreateButton()
-    {
-        return new MacButton();
-    }
+//// Concrete creators override the factory method to change the
+//// resulting product's type.
+//class WindowsDialog : Dialog
+//{
+//    public override IButton CreateButton()
+//    {
+//        return new WindowsButton();
+//    }
+//}
 
-    public ICheckbox CreateCheckbox()
-    {
-        return new MacCheckbox();
-    }
-}
+//class WebDialog : Dialog
+//{
+//    public override IButton CreateButton()
+//    {
+//        return new HtmlButton();
+//    }
+//}
 
-// Each distinct product of a product family should have a base
-// interface. All variants of the product must implement this
-// interface.
-public interface IButton
-{
-    void Paint();
-}
+//// The product interface declares the operations that all
+//// concrete products must implement.
+//public interface IButton
+//{
+//    void Render();
+//    void OnClick(Action action);
+//}
 
-// Concrete products are created by corresponding concrete
-// factories.
-public class WinButton : IButton
-{
-    public void Paint()
-    {
-        // Render a button in Windows style.
-        Console.WriteLine("Rendering a button in Windows style.");
-    }
-}
+//// Concrete products provide various implementations of the
+//// product interface.
+//class WindowsButton : IButton
+//{
+//    public void Render()
+//    {
+//        // Render a button in Windows style.
+//        Console.WriteLine("Render Windows button.");
+//    }
 
-public class MacButton : IButton
-{
-    public void Paint()
-    {
-        // Render a button in macOS style.
-        Console.WriteLine("Rendering a button in macOS style.");
-    }
-}
+//    public void OnClick(Action action)
+//    {
+//        // Bind a native OS click event.
+//        action();
+//    }
+//}
 
-// Here's the base interface of another product. All products
-// can interact with each other, but proper interaction is
-// possible only between products of the same concrete variant.
-public interface ICheckbox
-{
-    void Paint();
-}
+//class HtmlButton : IButton
+//{
+//    public void Render()
+//    {
+//        // Return an HTML representation of a button.
+//        Console.WriteLine("Render HTML button.");
+//    }
 
-public class WinCheckbox : ICheckbox
-{
-    public void Paint()
-    {
-        // Render a checkbox in Windows style.
-        Console.WriteLine("Rendering a checkbox in Windows style.");
-    }
-}
+//    public void OnClick(Action action)
+//    {
+//        // Bind a web browser click event.
+//        action();
+//    }
+//}
 
-public class MacCheckbox : ICheckbox
-{
-    public void Paint()
-    {
-        // Render a checkbox in macOS style.
-        Console.WriteLine("Rendering a checkbox in macOS style.");
-    }
-}
+//// Application class
+//class Application
+//{
+//    private Dialog dialog;
 
-// The client code works with factories and products only
-// through abstract types: IGUIFactory, IButton, and ICheckbox. This
-// lets you pass any factory or product subclass to the client
-// code without breaking it.
-public class Application
-{
-    private IGUIFactory _factory;
-    private IButton _button;
+//    // The application picks a creator's type depending on the
+//    // current configuration or environment settings.
+//    public void Initialize()
+//    {
+//        // Simulate reading config, for example.
+//        string configOS = ReadApplicationConfigFile();
 
-    public Application(IGUIFactory factory)
-    {
-        _factory = factory;
-    }
+//        if (configOS == "Windows")
+//        {
+//            dialog = new WindowsDialog();
+//        }
+//        else if (configOS == "Web")
+//        {
+//            dialog = new WebDialog();
+//        }
+//        else
+//        {
+//            throw new Exception("Error! Unknown operating system.");
+//        }
+//    }
 
-    public void CreateUI()
-    {
-        _button = _factory.CreateButton();
-    }
+//    // The client code works with an instance of a concrete
+//    // creator, albeit through its base interface. As long as
+//    // the client keeps working with the creator via the base
+//    // interface, you can pass it any creator's subclass.
+//    public void Main()
+//    {
+//        Initialize();
+//        dialog.Render();
+//    }
 
-    public void Paint()
-    {
-        _button.Paint();
-    }
-}
+//    // Simulate reading configuration
+//    private string ReadApplicationConfigFile()
+//    {
+//        // For demonstration, return "Windows" or "Web" based on preference
+//        return "Windows"; // Change this to "Web" for web version
+//    }
+//}
 
-// The application picks the factory type depending on the
-// current configuration or environment settings and creates it
-// at runtime (usually at the initialization stage).
-public class ApplicationConfigurator
-{
-    public static void Main(string[] args)
-    {
-        // Simulate reading configuration
-        string configOS = ReadApplicationConfigFile();
-
-        IGUIFactory factory;
-
-        if (configOS == "Windows")
-        {
-            factory = new WinFactory();
-        }
-        else if (configOS == "Mac")
-        {
-            factory = new MacFactory();
-        }
-        else
-        {
-            throw new Exception("Error! Unknown operating system.");
-        }
-
-        Application app = new Application(factory);
-        app.CreateUI();
-        app.Paint();
-    }
-
-    private static string ReadApplicationConfigFile()
-    {
-        // For demonstration purposes, return either "Windows" or "Mac"
-        return "Windows"; // Change to "Mac" to simulate macOS version
-    }
-}
+//// Usage example
+//class Program
+//{
+//    static void Main(string[] args)
+//    {
+//        Application app = new Application();
+//        app.Main();
+//    }
+//}

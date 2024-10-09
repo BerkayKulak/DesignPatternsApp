@@ -1,205 +1,128 @@
 ﻿using System;
+using System.Collections.Generic;
 
-// The Car class represents a complex product. It may contain a variety of parts.
-public class Car
+// Abstract class Shape
+public abstract class Shape
 {
-    public void SetSeats(int number)
+    public int X { get; set; }
+    public int Y { get; set; }
+    public string Color { get; set; }
+
+    // Regular constructor
+    public Shape() { }
+
+    // Prototype constructor
+    public Shape(Shape source)
     {
-        // Set the number of seats in the car.
-        Console.WriteLine($"Setting {number} seats.");
+        if (source != null)
+        {
+            this.X = source.X;
+            this.Y = source.Y;
+            this.Color = source.Color;
+        }
     }
 
-    public void SetEngine(string engine)
+    // The clone method
+    public abstract Shape Clone();
+}
+
+// Concrete prototype: Rectangle
+public class Rectangle : Shape
+{
+    public int Width { get; set; }
+    public int Height { get; set; }
+
+    // Constructor for Rectangle
+    public Rectangle() { }
+
+    // Prototype constructor for Rectangle
+    public Rectangle(Rectangle source) : base(source)
     {
-        // Set the engine type.
-        Console.WriteLine($"Installing {engine} engine.");
+        if (source != null)
+        {
+            this.Width = source.Width;
+            this.Height = source.Height;
+        }
     }
 
-    public void SetTripComputer(bool hasTripComputer)
+    // Clone method for Rectangle
+    public override Shape Clone()
     {
-        if (hasTripComputer)
-            Console.WriteLine("Installing trip computer.");
-        else
-            Console.WriteLine("No trip computer.");
-    }
-
-    public void SetGPS(bool hasGPS)
-    {
-        if (hasGPS)
-            Console.WriteLine("Installing GPS.");
-        else
-            Console.WriteLine("No GPS installed.");
+        return new Rectangle(this);
     }
 }
 
-// The Manual class represents a different product that describes a car's configuration.
-public class Manual
+// Concrete prototype: Circle
+public class Circle : Shape
 {
-    public void AddSeatsDocumentation(int number)
+    public int Radius { get; set; }
+
+    // Constructor for Circle
+    public Circle() { }
+
+    // Prototype constructor for Circle
+    public Circle(Circle source) : base(source)
     {
-        // Document car seat features.
-        Console.WriteLine($"Documenting {number} seats.");
+        if (source != null)
+        {
+            this.Radius = source.Radius;
+        }
     }
 
-    public void AddEngineDocumentation(string engine)
+    // Clone method for Circle
+    public override Shape Clone()
     {
-        // Document engine instructions.
-        Console.WriteLine($"Documenting {engine} engine.");
-    }
-
-    public void AddTripComputerDocumentation(bool hasTripComputer)
-    {
-        if (hasTripComputer)
-            Console.WriteLine("Documenting trip computer.");
-        else
-            Console.WriteLine("No trip computer documentation.");
-    }
-
-    public void AddGPSDocumentation(bool hasGPS)
-    {
-        if (hasGPS)
-            Console.WriteLine("Documenting GPS.");
-        else
-            Console.WriteLine("No GPS documentation.");
+        return new Circle(this);
     }
 }
 
-// The builder interface specifies methods for creating the different parts of the product objects.
-public interface IBuilder
+// Client code: Application
+public class Application
 {
-    void Reset();
-    void SetSeats(int number);
-    void SetEngine(string engine);
-    void SetTripComputer(bool hasTripComputer);
-    void SetGPS(bool hasGPS);
-}
+    private List<Shape> shapes = new List<Shape>();
 
-// The concrete builder for creating Car objects.
-public class CarBuilder : IBuilder
-{
-    private Car car;
-
-    public CarBuilder()
+    public Application()
     {
-        this.Reset();
+        // Create and clone a Circle
+        Circle circle = new Circle();
+        circle.X = 10;
+        circle.Y = 10;
+        circle.Radius = 20;
+        shapes.Add(circle);
+
+        Circle anotherCircle = (Circle)circle.Clone();
+        shapes.Add(anotherCircle);
+
+        // Create and clone a Rectangle
+        Rectangle rectangle = new Rectangle();
+        rectangle.X = 5;
+        rectangle.Y = 5;
+        rectangle.Width = 10;
+        rectangle.Height = 20;
+        shapes.Add(rectangle);
     }
 
-    public void Reset()
+    public void BusinessLogic()
     {
-        this.car = new Car();
-    }
+        // Create a copy of the shapes list
+        List<Shape> shapesCopy = new List<Shape>();
 
-    public void SetSeats(int number)
-    {
-        car.SetSeats(number);
-    }
+        foreach (var shape in shapes)
+        {
+            shapesCopy.Add(shape.Clone());
+        }
 
-    public void SetEngine(string engine)
-    {
-        car.SetEngine(engine);
-    }
-
-    public void SetTripComputer(bool hasTripComputer)
-    {
-        car.SetTripComputer(hasTripComputer);
-    }
-
-    public void SetGPS(bool hasGPS)
-    {
-        car.SetGPS(hasGPS);
-    }
-
-    public Car GetProduct()
-    {
-        Car product = this.car;
-        this.Reset();
-        return product;
+        // Now shapesCopy contains clones of the original shapes
     }
 }
 
-// The concrete builder for creating Manual objects.
-public class CarManualBuilder : IBuilder
-{
-    private Manual manual;
-
-    public CarManualBuilder()
-    {
-        this.Reset();
-    }
-
-    public void Reset()
-    {
-        this.manual = new Manual();
-    }
-
-    public void SetSeats(int number)
-    {
-        manual.AddSeatsDocumentation(number);
-    }
-
-    public void SetEngine(string engine)
-    {
-        manual.AddEngineDocumentation(engine);
-    }
-
-    public void SetTripComputer(bool hasTripComputer)
-    {
-        manual.AddTripComputerDocumentation(hasTripComputer);
-    }
-
-    public void SetGPS(bool hasGPS)
-    {
-        manual.AddGPSDocumentation(hasGPS);
-    }
-
-    public Manual GetProduct()
-    {
-        Manual product = this.manual;
-        this.Reset();
-        return product;
-    }
-}
-
-// The Director is responsible for executing the building steps in a particular sequence.
-public class Director
-{
-    public void ConstructSportsCar(IBuilder builder)
-    {
-        builder.Reset();
-        builder.SetSeats(2);
-        builder.SetEngine("SportEngine");
-        builder.SetTripComputer(true);
-        builder.SetGPS(true);
-    }
-
-    public void ConstructSUV(IBuilder builder)
-    {
-        builder.Reset();
-        builder.SetSeats(5);
-        builder.SetEngine("SUVEngine");
-        builder.SetTripComputer(false);
-        builder.SetGPS(true);
-    }
-}
-
-// The client code creates a builder object, passes it to the Director, and then initiates the construction process.
-class Application
+// Example usage
+public class Program
 {
     public static void Main(string[] args)
     {
-        Director director = new Director();
-
-        // Create a car
-        CarBuilder carBuilder = new CarBuilder();
-        director.ConstructSportsCar(carBuilder);
-        Car car = carBuilder.GetProduct();
-
-        // Create a manual for the car
-        CarManualBuilder manualBuilder = new CarManualBuilder();
-        director.ConstructSportsCar(manualBuilder);
-        Manual manual = manualBuilder.GetProduct();
-
-        // Output car details and manual creation to the console
-        Console.WriteLine("Car and Manual created.");
+        Application app = new Application();
+        app.BusinessLogic();
+        Console.WriteLine("Shapes copied successfully.");
     }
 }

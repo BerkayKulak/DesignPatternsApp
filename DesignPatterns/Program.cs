@@ -1,128 +1,59 @@
 ﻿using System;
-using System.Collections.Generic;
 
-// Abstract class Shape
-public abstract class Shape
+public class Database
 {
-    public int X { get; set; }
-    public int Y { get; set; }
-    public string Color { get; set; }
+    // The field for storing the singleton instance should be declared static.
+    private static Database instance;
 
-    // Regular constructor
-    public Shape() { }
+    // An object used for thread synchronization (lock).
+    private static readonly object lockObj = new object();
 
-    // Prototype constructor
-    public Shape(Shape source)
+    // The singleton's constructor should always be private to prevent direct construction.
+    private Database()
     {
-        if (source != null)
-        {
-            this.X = source.X;
-            this.Y = source.Y;
-            this.Color = source.Color;
-        }
+        // Some initialization code, such as connecting to a database server.
+        Console.WriteLine("Initializing the database connection...");
     }
 
-    // The clone method
-    public abstract Shape Clone();
-}
-
-// Concrete prototype: Rectangle
-public class Rectangle : Shape
-{
-    public int Width { get; set; }
-    public int Height { get; set; }
-
-    // Constructor for Rectangle
-    public Rectangle() { }
-
-    // Prototype constructor for Rectangle
-    public Rectangle(Rectangle source) : base(source)
+    // The static method that controls access to the singleton instance.
+    public static Database GetInstance()
     {
-        if (source != null)
+        if (instance == null)
         {
-            this.Width = source.Width;
-            this.Height = source.Height;
+            lock (lockObj) // Ensure thread safety.
+            {
+                // Double-check locking to prevent multiple threads from creating separate instances.
+                if (instance == null)
+                {
+                    instance = new Database();
+                }
+            }
         }
+
+        return instance;
     }
 
-    // Clone method for Rectangle
-    public override Shape Clone()
+    // Business logic, such as executing a query.
+    public void Query(string sql)
     {
-        return new Rectangle(this);
+        // In a real-world scenario, execute the SQL query against the database.
+        Console.WriteLine($"Executing query: {sql}");
     }
 }
 
-// Concrete prototype: Circle
-public class Circle : Shape
-{
-    public int Radius { get; set; }
-
-    // Constructor for Circle
-    public Circle() { }
-
-    // Prototype constructor for Circle
-    public Circle(Circle source) : base(source)
-    {
-        if (source != null)
-        {
-            this.Radius = source.Radius;
-        }
-    }
-
-    // Clone method for Circle
-    public override Shape Clone()
-    {
-        return new Circle(this);
-    }
-}
-
-// Client code: Application
 public class Application
-{
-    private List<Shape> shapes = new List<Shape>();
-
-    public Application()
-    {
-        // Create and clone a Circle
-        Circle circle = new Circle();
-        circle.X = 10;
-        circle.Y = 10;
-        circle.Radius = 20;
-        shapes.Add(circle);
-
-        Circle anotherCircle = (Circle)circle.Clone();
-        shapes.Add(anotherCircle);
-
-        // Create and clone a Rectangle
-        Rectangle rectangle = new Rectangle();
-        rectangle.X = 5;
-        rectangle.Y = 5;
-        rectangle.Width = 10;
-        rectangle.Height = 20;
-        shapes.Add(rectangle);
-    }
-
-    public void BusinessLogic()
-    {
-        // Create a copy of the shapes list
-        List<Shape> shapesCopy = new List<Shape>();
-
-        foreach (var shape in shapes)
-        {
-            shapesCopy.Add(shape.Clone());
-        }
-
-        // Now shapesCopy contains clones of the original shapes
-    }
-}
-
-// Example usage
-public class Program
 {
     public static void Main(string[] args)
     {
-        Application app = new Application();
-        app.BusinessLogic();
-        Console.WriteLine("Shapes copied successfully.");
+        // Get the singleton instance and execute some queries.
+        Database foo = Database.GetInstance();
+        foo.Query("SELECT * FROM users");
+
+        // Get the singleton instance again (this will return the same instance).
+        Database bar = Database.GetInstance();
+        bar.Query("SELECT * FROM products");
+
+        // Both `foo` and `bar` reference the same Database instance.
+        Console.WriteLine($"foo and bar are the same instance: {ReferenceEquals(foo, bar)}");
     }
 }

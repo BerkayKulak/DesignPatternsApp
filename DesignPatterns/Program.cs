@@ -1,101 +1,76 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace FlyweightPattern
+namespace CachingProxyPattern
 {
-    // Flyweight interface (shared state)
-    public interface IShape
+    // Subject: Kullanıcı verisi arayüzü
+    public interface IUserService
     {
-        void Draw(int x, int y, string uniqueState);
+        string GetUserDetails(int userId);
     }
 
-    // Concrete Flyweight class (shared state)
-    public class Circle : IShape
+    // RealSubject: Gerçek kullanıcı verisi sağlayan sınıf (örneğin bir veritabanı)
+    public class UserService : IUserService
     {
-        private string color;
-        private int radius;
-
-        public Circle(string color, int radius)
+        public string GetUserDetails(int userId)
         {
-            this.color = color;
-            this.radius = radius;
-        }
-
-        // Intrinsic state (shared): color, radius
-        // Extrinsic state (unique): x, y
-        public void Draw(int x, int y, string uniqueState)
-        {
-            Console.WriteLine($"Drawing Circle [Color: {color}, Radius: {radius}, Position: ({x},{y})] with {uniqueState}");
+            // Veritabanına sorgu simülasyonu
+            Console.WriteLine($"Fetching details for user {userId} from the database...");
+            return $"User{userId} Details: Name - John Doe, Age - 30";
         }
     }
 
-    // Flyweight Factory: Manages the Flyweight objects and provides shared instances
-    public class ShapeFactory
+    // Proxy: Kullanıcı verilerini önbellekte tutan önbellek proxy sınıfı
+    public class UserServiceProxy : IUserService
     {
-        private Dictionary<string, IShape> shapeCache = new Dictionary<string, IShape>();
+        private UserService _realUserService;
+        private Dictionary<int, string> _cache;
 
-        // Returns the shared flyweight object
-        public IShape GetCircle(string color, int radius)
+        public UserServiceProxy()
         {
-            string key = $"{color}_{radius}";
+            _realUserService = new UserService();
+            _cache = new Dictionary<int, string>();
+        }
 
-            if (!shapeCache.ContainsKey(key))
+        public string GetUserDetails(int userId)
+        {
+            if (_cache.ContainsKey(userId))
             {
-                shapeCache[key] = new Circle(color, radius);
-                Console.WriteLine($"Creating new Circle of color {color} and radius {radius}");
+                Console.WriteLine($"Returning cached data for user {userId}");
+                return _cache[userId];
             }
-
-            return shapeCache[key];
-        }
-
-        public int GetTotalShapesCreated()
-        {
-            return shapeCache.Count;
-        }
-    }
-
-    // Client code that uses Flyweight objects
-    public class DrawingApp
-    {
-        private ShapeFactory shapeFactory;
-
-        public DrawingApp(ShapeFactory shapeFactory)
-        {
-            this.shapeFactory = shapeFactory;
-        }
-
-        public void DrawShapes()
-        {
-            // Same shape (shared) but at different positions (unique)
-            var circle1 = shapeFactory.GetCircle("Red", 5);
-            circle1.Draw(10, 10, "unique shading");
-
-            var circle2 = shapeFactory.GetCircle("Red", 5);
-            circle2.Draw(15, 20, "unique border");
-
-            var circle3 = shapeFactory.GetCircle("Blue", 10);
-            circle3.Draw(25, 30, "glossy texture");
-
-            var circle4 = shapeFactory.GetCircle("Green", 7);
-            circle4.Draw(35, 40, "dotted border");
-
-            // Reuse the existing "Red" circle
-            var circle5 = shapeFactory.GetCircle("Red", 5);
-            circle5.Draw(50, 60, "bright shadow");
+            else
+            {
+                // Veri önbellekte yoksa veritabanından getiriliyor
+                string userDetails = _realUserService.GetUserDetails(userId);
+                _cache[userId] = userDetails; // Sonuç önbelleğe kaydediliyor
+                return userDetails;
+            }
         }
     }
 
-    // Main Program
+    // Client code
     class Program
     {
         static void Main(string[] args)
         {
-            ShapeFactory shapeFactory = new ShapeFactory();
-            DrawingApp drawingApp = new DrawingApp(shapeFactory);
+            // Proxy ile kullanıcı servisi oluşturuluyor
+            IUserService userService = new UserServiceProxy();
 
-            drawingApp.DrawShapes();
+            // İlk istekte veritabanından veri çekiliyor
+            Console.WriteLine(userService.GetUserDetails(1));
+            Console.WriteLine();
 
-            Console.WriteLine($"\nTotal unique shapes created: {shapeFactory.GetTotalShapesCreated()}");
+            // İkinci istekte aynı veri önbellekten getiriliyor
+            Console.WriteLine(userService.GetUserDetails(1));
+            Console.WriteLine();
+
+            // Farklı bir kullanıcı için veri çekiliyor (veritabanından)
+            Console.WriteLine(userService.GetUserDetails(2));
+            Console.WriteLine();
+
+            // Aynı kullanıcı için önbelleğe alınmış veri getiriliyor
+            Console.WriteLine(userService.GetUserDetails(2));
         }
     }
 }

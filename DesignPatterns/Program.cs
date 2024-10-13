@@ -1,174 +1,101 @@
 ﻿using System;
+using System.Collections.Generic;
 
-namespace FacadePattern
+namespace FlyweightPattern
 {
-    // Müşteri doğrulama sistemi
-    public class AuthenticationService
+    // Flyweight interface (shared state)
+    public interface IShape
     {
-        public bool Authenticate(string customerId, string password)
+        void Draw(int x, int y, string uniqueState);
+    }
+
+    // Concrete Flyweight class (shared state)
+    public class Circle : IShape
+    {
+        private string color;
+        private int radius;
+
+        public Circle(string color, int radius)
         {
-            // Simulated authentication process
-            Console.WriteLine($"Authenticating customer {customerId}...");
-            return customerId == "12345" && password == "password";
+            this.color = color;
+            this.radius = radius;
+        }
+
+        // Intrinsic state (shared): color, radius
+        // Extrinsic state (unique): x, y
+        public void Draw(int x, int y, string uniqueState)
+        {
+            Console.WriteLine($"Drawing Circle [Color: {color}, Radius: {radius}, Position: ({x},{y})] with {uniqueState}");
         }
     }
 
-    // Banka hesap bakiyesi kontrol sistemi
-    public class AccountService
+    // Flyweight Factory: Manages the Flyweight objects and provides shared instances
+    public class ShapeFactory
     {
-        public double GetBalance(string accountId)
+        private Dictionary<string, IShape> shapeCache = new Dictionary<string, IShape>();
+
+        // Returns the shared flyweight object
+        public IShape GetCircle(string color, int radius)
         {
-            // Simulated balance retrieval
-            Console.WriteLine($"Fetching balance for account {accountId}...");
-            return 1000.00;
+            string key = $"{color}_{radius}";
+
+            if (!shapeCache.ContainsKey(key))
+            {
+                shapeCache[key] = new Circle(color, radius);
+                Console.WriteLine($"Creating new Circle of color {color} and radius {radius}");
+            }
+
+            return shapeCache[key];
         }
 
-        public void DeductAmount(string accountId, double amount)
+        public int GetTotalShapesCreated()
         {
-            // Simulated balance deduction
-            Console.WriteLine($"Deducting {amount:C2} from account {accountId}");
-        }
-
-        public void AddAmount(string accountId, double amount)
-        {
-            // Simulated balance addition
-            Console.WriteLine($"Adding {amount:C2} to account {accountId}");
+            return shapeCache.Count;
         }
     }
 
-    // Para transferi sistemi
-    public class TransferService
+    // Client code that uses Flyweight objects
+    public class DrawingApp
     {
-        public void TransferFunds(string fromAccount, string toAccount, double amount)
+        private ShapeFactory shapeFactory;
+
+        public DrawingApp(ShapeFactory shapeFactory)
         {
-            Console.WriteLine($"Transferring {amount:C2} from {fromAccount} to {toAccount}");
+            this.shapeFactory = shapeFactory;
+        }
+
+        public void DrawShapes()
+        {
+            // Same shape (shared) but at different positions (unique)
+            var circle1 = shapeFactory.GetCircle("Red", 5);
+            circle1.Draw(10, 10, "unique shading");
+
+            var circle2 = shapeFactory.GetCircle("Red", 5);
+            circle2.Draw(15, 20, "unique border");
+
+            var circle3 = shapeFactory.GetCircle("Blue", 10);
+            circle3.Draw(25, 30, "glossy texture");
+
+            var circle4 = shapeFactory.GetCircle("Green", 7);
+            circle4.Draw(35, 40, "dotted border");
+
+            // Reuse the existing "Red" circle
+            var circle5 = shapeFactory.GetCircle("Red", 5);
+            circle5.Draw(50, 60, "bright shadow");
         }
     }
 
-    // Kredi kartı ödeme sistemi
-    public class CreditCardService
-    {
-        public void PayCreditCardBill(string cardNumber, double amount)
-        {
-            Console.WriteLine($"Paying {amount:C2} towards credit card {cardNumber}");
-        }
-    }
-
-    // Fatura ödeme sistemi
-    public class BillPaymentService
-    {
-        public void PayBill(string biller, double amount)
-        {
-            Console.WriteLine($"Paying {amount:C2} to {biller}");
-        }
-    }
-
-    // Facade: Banka işlemleri yöneten basit bir arayüz
-    public class BankFacade
-    {
-        private AuthenticationService _authService;
-        private AccountService _accountService;
-        private TransferService _transferService;
-        private CreditCardService _creditCardService;
-        private BillPaymentService _billPaymentService;
-
-        public BankFacade()
-        {
-            _authService = new AuthenticationService();
-            _accountService = new AccountService();
-            _transferService = new TransferService();
-            _creditCardService = new CreditCardService();
-            _billPaymentService = new BillPaymentService();
-        }
-
-        public bool Login(string customerId, string password)
-        {
-            return _authService.Authenticate(customerId, password);
-        }
-
-        public void Transfer(string customerId, string password, string fromAccount, string toAccount, double amount)
-        {
-            if (Login(customerId, password))
-            {
-                double balance = _accountService.GetBalance(fromAccount);
-                if (balance >= amount)
-                {
-                    _transferService.TransferFunds(fromAccount, toAccount, amount);
-                    _accountService.DeductAmount(fromAccount, amount);
-                    _accountService.AddAmount(toAccount, amount);
-                }
-                else
-                {
-                    Console.WriteLine("Insufficient balance for transfer.");
-                }
-            }
-            else
-            {
-                Console.WriteLine("Authentication failed.");
-            }
-        }
-
-        public void PayCreditCard(string customerId, string password, string cardNumber, double amount)
-        {
-            if (Login(customerId, password))
-            {
-                double balance = _accountService.GetBalance(customerId);
-                if (balance >= amount)
-                {
-                    _creditCardService.PayCreditCardBill(cardNumber, amount);
-                    _accountService.DeductAmount(customerId, amount);
-                }
-                else
-                {
-                    Console.WriteLine("Insufficient balance to pay credit card.");
-                }
-            }
-            else
-            {
-                Console.WriteLine("Authentication failed.");
-            }
-        }
-
-        public void PayBill(string customerId, string password, string biller, double amount)
-        {
-            if (Login(customerId, password))
-            {
-                double balance = _accountService.GetBalance(customerId);
-                if (balance >= amount)
-                {
-                    _billPaymentService.PayBill(biller, amount);
-                    _accountService.DeductAmount(customerId, amount);
-                }
-                else
-                {
-                    Console.WriteLine("Insufficient balance to pay bill.");
-                }
-            }
-            else
-            {
-                Console.WriteLine("Authentication failed.");
-            }
-        }
-    }
-
-    // Client code
+    // Main Program
     class Program
     {
         static void Main(string[] args)
         {
-            BankFacade bankFacade = new BankFacade();
+            ShapeFactory shapeFactory = new ShapeFactory();
+            DrawingApp drawingApp = new DrawingApp(shapeFactory);
 
-            // Kullanıcı giriş yapıyor ve para transferi yapıyor
-            Console.WriteLine("\n--- Transfering funds ---");
-            bankFacade.Transfer("12345", "password", "12345", "67890", 200.00);
+            drawingApp.DrawShapes();
 
-            // Kredi kartı borcu ödeniyor
-            Console.WriteLine("\n--- Paying credit card bill ---");
-            bankFacade.PayCreditCard("12345", "password", "9876-5432-1234-5678", 500.00);
-
-            // Fatura ödeniyor
-            Console.WriteLine("\n--- Paying bill ---");
-            bankFacade.PayBill("12345", "password", "Electricity", 150.00);
+            Console.WriteLine($"\nTotal unique shapes created: {shapeFactory.GetTotalShapesCreated()}");
         }
     }
 }

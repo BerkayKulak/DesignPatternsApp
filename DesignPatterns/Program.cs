@@ -1,132 +1,156 @@
 ﻿using System;
+using System.Collections.Generic;
 
-namespace BridgePatternComplex
+namespace CompositePatternComplex
 {
-    // Abstraction (Payment)
-    public abstract class Payment
+    // Component: Ortak arayüz hem bireysel ürünler hem de paketler için kullanılır.
+    public abstract class OrderComponent
     {
-        protected IPaymentProcessor processor;
-
-        public Payment(IPaymentProcessor processor)
+        public abstract string GetName();
+        public abstract double GetPrice();
+        public virtual void Add(OrderComponent component)
         {
-            this.processor = processor;
+            throw new NotImplementedException("This operation is not supported.");
         }
 
-        public abstract void MakePayment();
-    }
-
-    // Refined Abstraction (Card Payment)
-    public class CardPayment : Payment
-    {
-        private string cardNumber;
-        private double amount;
-
-        public CardPayment(IPaymentProcessor processor, string cardNumber, double amount) : base(processor)
+        public virtual void Remove(OrderComponent component)
         {
-            this.cardNumber = cardNumber;
-            this.amount = amount;
+            throw new NotImplementedException("This operation is not supported.");
         }
 
-        public override void MakePayment()
+        public virtual List<OrderComponent> GetItems()
         {
-            Console.WriteLine($"Processing card payment of {amount} using card {cardNumber}");
-            processor.ProcessPayment(amount);
+            throw new NotImplementedException("This operation is not supported.");
         }
     }
 
-    // Refined Abstraction (Bank Transfer Payment)
-    public class BankTransferPayment : Payment
+    // Leaf: Bireysel Ürün (Tek başına satılan bir ürün)
+    public class Product : OrderComponent
     {
-        private string accountNumber;
-        private double amount;
+        private string name;
+        private double price;
 
-        public BankTransferPayment(IPaymentProcessor processor, string accountNumber, double amount) : base(processor)
+        public Product(string name, double price)
         {
-            this.accountNumber = accountNumber;
-            this.amount = amount;
+            this.name = name;
+            this.price = price;
         }
 
-        public override void MakePayment()
+        public override string GetName()
         {
-            Console.WriteLine($"Processing bank transfer of {amount} from account {accountNumber}");
-            processor.ProcessPayment(amount);
+            return name;
+        }
+
+        public override double GetPrice()
+        {
+            return price;
         }
     }
 
-    // Refined Abstraction (Digital Wallet Payment)
-    public class WalletPayment : Payment
+    // Composite: Paket (Birden fazla üründen oluşan kombinasyon)
+    public class ProductBundle : OrderComponent
     {
-        private string walletId;
-        private double amount;
+        private List<OrderComponent> items = new List<OrderComponent>();
+        private string bundleName;
 
-        public WalletPayment(IPaymentProcessor processor, string walletId, double amount) : base(processor)
+        public ProductBundle(string name)
         {
-            this.walletId = walletId;
-            this.amount = amount;
+            this.bundleName = name;
         }
 
-        public override void MakePayment()
+        public override string GetName()
         {
-            Console.WriteLine($"Processing wallet payment of {amount} from wallet ID {walletId}");
-            processor.ProcessPayment(amount);
+            return bundleName;
         }
-    }
 
-    // Implementation (Payment Processor)
-    public interface IPaymentProcessor
-    {
-        void ProcessPayment(double amount);
-    }
-
-    // Concrete Implementation for PayPal Processor
-    public class PayPalProcessor : IPaymentProcessor
-    {
-        public void ProcessPayment(double amount)
+        public override double GetPrice()
         {
-            Console.WriteLine($"PayPal processing payment of {amount}");
-            // Simulate PayPal payment logic
+            double total = 0;
+            foreach (var item in items)
+            {
+                total += item.GetPrice();
+            }
+            return total;
         }
-    }
 
-    // Concrete Implementation for Stripe Processor
-    public class StripeProcessor : IPaymentProcessor
-    {
-        public void ProcessPayment(double amount)
+        public override void Add(OrderComponent component)
         {
-            Console.WriteLine($"Stripe processing payment of {amount}");
-            // Simulate Stripe payment logic
+            items.Add(component);
+        }
+
+        public override void Remove(OrderComponent component)
+        {
+            items.Remove(component);
+        }
+
+        public override List<OrderComponent> GetItems()
+        {
+            return items;
         }
     }
 
-    // Concrete Implementation for Square Processor
-    public class SquareProcessor : IPaymentProcessor
+    // Client: Sipariş yönetim sistemi
+    public class OrderSystem
     {
-        public void ProcessPayment(double amount)
+        private OrderComponent order;
+
+        public OrderSystem(OrderComponent order)
         {
-            Console.WriteLine($"Square processing payment of {amount}");
-            // Simulate Square payment logic
+            this.order = order;
+        }
+
+        public void PrintOrderDetails()
+        {
+            Console.WriteLine($"Order Summary for: {order.GetName()}");
+            Console.WriteLine($"Total Price: {order.GetPrice():C2}");
+
+            if (order is ProductBundle)
+            {
+                PrintBundleItems(order);
+            }
+        }
+
+        private void PrintBundleItems(OrderComponent component)
+        {
+            var items = component.GetItems();
+            foreach (var item in items)
+            {
+                Console.WriteLine($" - {item.GetName()} : {item.GetPrice():C2}");
+                if (item is ProductBundle)
+                {
+                    PrintBundleItems(item); // Nested bundles
+                }
+            }
         }
     }
 
-    // Client Code
+    // Main Program
     public class Program
     {
         public static void Main(string[] args)
         {
-            // PayPal with card payment
-            IPaymentProcessor paypalProcessor = new PayPalProcessor();
-            Payment cardPayment = new CardPayment(paypalProcessor, "1234-5678-9012-3456", 250.00);
-            cardPayment.MakePayment();
+            // Tekil Ürünler
+            OrderComponent laptop = new Product("Laptop", 1200.00);
+            OrderComponent phone = new Product("Smartphone", 800.00);
+            OrderComponent mouse = new Product("Wireless Mouse", 40.00);
 
-            // Stripe with bank transfer payment
-            IPaymentProcessor stripeProcessor = new StripeProcessor();
-            Payment bankPayment = new BankTransferPayment(stripeProcessor, "ACC12345678", 1000.00);
-            bankPayment.MakePayment();
+            // Paket: Ofis Paketi
+            ProductBundle officeBundle = new ProductBundle("Office Package");
+            officeBundle.Add(laptop);
+            officeBundle.Add(mouse);
 
-            // Square with wallet payment
-            IPaymentProcessor squareProcessor = new SquareProcessor();
-            Payment walletPayment = new WalletPayment(squareProcessor, "WALLET001", 150.00);
-            walletPayment.MakePayment();
+            // Paket: Teknoloji Paketi (İçinde başka bir paket var)
+            ProductBundle techBundle = new ProductBundle("Tech Bundle");
+            techBundle.Add(officeBundle);
+            techBundle.Add(phone);
+
+            // Sipariş sistemi: Teknoloji paketini ve tekil ürünleri içeren bir sipariş oluştur
+            OrderComponent fullOrder = new ProductBundle("Full Order");
+            fullOrder.Add(techBundle);
+
+            // Sipariş detaylarını yazdır
+            OrderSystem orderSystem = new OrderSystem(fullOrder);
+            orderSystem.PrintOrderDetails();
         }
     }
 }

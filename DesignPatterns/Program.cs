@@ -1,187 +1,174 @@
 ﻿using System;
 
-namespace DecoratorPattern
+namespace FacadePattern
 {
-    // The component interface defines operations that can be altered by decorators.
-    public interface IDataSource
+    // Müşteri doğrulama sistemi
+    public class AuthenticationService
     {
-        void WriteData(string data);
-        string ReadData();
-    }
-
-    // Concrete components provide default implementations for the operations.
-    public class FileDataSource : IDataSource
-    {
-        private string _filename;
-
-        public FileDataSource(string filename)
+        public bool Authenticate(string customerId, string password)
         {
-            _filename = filename;
-        }
-
-        public void WriteData(string data)
-        {
-            Console.WriteLine($"Writing data to file: {_filename}");
-            // Simulate writing to a file
-        }
-
-        public string ReadData()
-        {
-            Console.WriteLine($"Reading data from file: {_filename}");
-            // Simulate reading from a file
-            return "file data";
+            // Simulated authentication process
+            Console.WriteLine($"Authenticating customer {customerId}...");
+            return customerId == "12345" && password == "password";
         }
     }
 
-    // The base decorator class follows the same interface as the other components.
-    public class DataSourceDecorator : IDataSource
+    // Banka hesap bakiyesi kontrol sistemi
+    public class AccountService
     {
-        protected IDataSource _wrappee;
-
-        public DataSourceDecorator(IDataSource source)
+        public double GetBalance(string accountId)
         {
-            _wrappee = source;
+            // Simulated balance retrieval
+            Console.WriteLine($"Fetching balance for account {accountId}...");
+            return 1000.00;
         }
 
-        public virtual void WriteData(string data)
+        public void DeductAmount(string accountId, double amount)
         {
-            _wrappee.WriteData(data);
+            // Simulated balance deduction
+            Console.WriteLine($"Deducting {amount:C2} from account {accountId}");
         }
 
-        public virtual string ReadData()
+        public void AddAmount(string accountId, double amount)
         {
-            return _wrappee.ReadData();
+            // Simulated balance addition
+            Console.WriteLine($"Adding {amount:C2} to account {accountId}");
         }
     }
 
-    // Concrete decorators must call methods on the wrapped object but may add behavior.
-    public class EncryptionDecorator : DataSourceDecorator
+    // Para transferi sistemi
+    public class TransferService
     {
-        public EncryptionDecorator(IDataSource source) : base(source) { }
-
-        public override void WriteData(string data)
+        public void TransferFunds(string fromAccount, string toAccount, double amount)
         {
-            string encryptedData = Encrypt(data);
-            Console.WriteLine("Data has been encrypted.");
-            base.WriteData(encryptedData);
-        }
-
-        public override string ReadData()
-        {
-            string data = base.ReadData();
-            string decryptedData = Decrypt(data);
-            Console.WriteLine("Data has been decrypted.");
-            return decryptedData;
-        }
-
-        private string Encrypt(string data)
-        {
-            // Simulate encryption logic
-            return $"encrypted({data})";
-        }
-
-        private string Decrypt(string data)
-        {
-            // Simulate decryption logic
-            return data.Replace("encrypted(", "").Replace(")", "");
+            Console.WriteLine($"Transferring {amount:C2} from {fromAccount} to {toAccount}");
         }
     }
 
-    public class CompressionDecorator : DataSourceDecorator
+    // Kredi kartı ödeme sistemi
+    public class CreditCardService
     {
-        public CompressionDecorator(IDataSource source) : base(source) { }
-
-        public override void WriteData(string data)
+        public void PayCreditCardBill(string cardNumber, double amount)
         {
-            string compressedData = Compress(data);
-            Console.WriteLine("Data has been compressed.");
-            base.WriteData(compressedData);
-        }
-
-        public override string ReadData()
-        {
-            string data = base.ReadData();
-            string decompressedData = Decompress(data);
-            Console.WriteLine("Data has been decompressed.");
-            return decompressedData;
-        }
-
-        private string Compress(string data)
-        {
-            // Simulate compression logic
-            return $"compressed({data})";
-        }
-
-        private string Decompress(string data)
-        {
-            // Simulate decompression logic
-            return data.Replace("compressed(", "").Replace(")", "");
+            Console.WriteLine($"Paying {amount:C2} towards credit card {cardNumber}");
         }
     }
 
-    // Example client code that uses external data source.
-    public class SalaryManager
+    // Fatura ödeme sistemi
+    public class BillPaymentService
     {
-        private IDataSource _source;
-
-        public SalaryManager(IDataSource source)
+        public void PayBill(string biller, double amount)
         {
-            _source = source;
-        }
-
-        public void Save(string salaryRecords)
-        {
-            _source.WriteData(salaryRecords);
-        }
-
-        public string Load()
-        {
-            return _source.ReadData();
+            Console.WriteLine($"Paying {amount:C2} to {biller}");
         }
     }
 
-    // Application configurator for assembling decorators.
-    public class ApplicationConfigurator
+    // Facade: Banka işlemleri yöneten basit bir arayüz
+    public class BankFacade
     {
-        public void ConfigurationExample(bool enableEncryption, bool enableCompression)
-        {
-            IDataSource source = new FileDataSource("salary.dat");
+        private AuthenticationService _authService;
+        private AccountService _accountService;
+        private TransferService _transferService;
+        private CreditCardService _creditCardService;
+        private BillPaymentService _billPaymentService;
 
-            if (enableEncryption)
+        public BankFacade()
+        {
+            _authService = new AuthenticationService();
+            _accountService = new AccountService();
+            _transferService = new TransferService();
+            _creditCardService = new CreditCardService();
+            _billPaymentService = new BillPaymentService();
+        }
+
+        public bool Login(string customerId, string password)
+        {
+            return _authService.Authenticate(customerId, password);
+        }
+
+        public void Transfer(string customerId, string password, string fromAccount, string toAccount, double amount)
+        {
+            if (Login(customerId, password))
             {
-                source = new EncryptionDecorator(source);
+                double balance = _accountService.GetBalance(fromAccount);
+                if (balance >= amount)
+                {
+                    _transferService.TransferFunds(fromAccount, toAccount, amount);
+                    _accountService.DeductAmount(fromAccount, amount);
+                    _accountService.AddAmount(toAccount, amount);
+                }
+                else
+                {
+                    Console.WriteLine("Insufficient balance for transfer.");
+                }
             }
-
-            if (enableCompression)
+            else
             {
-                source = new CompressionDecorator(source);
+                Console.WriteLine("Authentication failed.");
             }
+        }
 
-            SalaryManager manager = new SalaryManager(source);
-            manager.Save("salary data");
+        public void PayCreditCard(string customerId, string password, string cardNumber, double amount)
+        {
+            if (Login(customerId, password))
+            {
+                double balance = _accountService.GetBalance(customerId);
+                if (balance >= amount)
+                {
+                    _creditCardService.PayCreditCardBill(cardNumber, amount);
+                    _accountService.DeductAmount(customerId, amount);
+                }
+                else
+                {
+                    Console.WriteLine("Insufficient balance to pay credit card.");
+                }
+            }
+            else
+            {
+                Console.WriteLine("Authentication failed.");
+            }
+        }
 
-            string salary = manager.Load();
-            Console.WriteLine($"Loaded salary data: {salary}");
+        public void PayBill(string customerId, string password, string biller, double amount)
+        {
+            if (Login(customerId, password))
+            {
+                double balance = _accountService.GetBalance(customerId);
+                if (balance >= amount)
+                {
+                    _billPaymentService.PayBill(biller, amount);
+                    _accountService.DeductAmount(customerId, amount);
+                }
+                else
+                {
+                    Console.WriteLine("Insufficient balance to pay bill.");
+                }
+            }
+            else
+            {
+                Console.WriteLine("Authentication failed.");
+            }
         }
     }
 
+    // Client code
     class Program
     {
         static void Main(string[] args)
         {
-            ApplicationConfigurator configurator = new ApplicationConfigurator();
+            BankFacade bankFacade = new BankFacade();
 
-            // Example 1: Compression and encryption both enabled
-            Console.WriteLine("Configuration 1: Compression and Encryption Enabled");
-            configurator.ConfigurationExample(enableEncryption: true, enableCompression: true);
+            // Kullanıcı giriş yapıyor ve para transferi yapıyor
+            Console.WriteLine("\n--- Transfering funds ---");
+            bankFacade.Transfer("12345", "password", "12345", "67890", 200.00);
 
-            // Example 2: Only encryption enabled
-            Console.WriteLine("\nConfiguration 2: Only Encryption Enabled");
-            configurator.ConfigurationExample(enableEncryption: true, enableCompression: false);
+            // Kredi kartı borcu ödeniyor
+            Console.WriteLine("\n--- Paying credit card bill ---");
+            bankFacade.PayCreditCard("12345", "password", "9876-5432-1234-5678", 500.00);
 
-            // Example 3: No decorators
-            Console.WriteLine("\nConfiguration 3: No Decorators");
-            configurator.ConfigurationExample(enableEncryption: false, enableCompression: false);
+            // Fatura ödeniyor
+            Console.WriteLine("\n--- Paying bill ---");
+            bankFacade.PayBill("12345", "password", "Electricity", 150.00);
         }
     }
 }

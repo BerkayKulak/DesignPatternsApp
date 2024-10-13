@@ -1,156 +1,187 @@
 ﻿using System;
-using System.Collections.Generic;
 
-namespace CompositePatternComplex
+namespace DecoratorPattern
 {
-    // Component: Ortak arayüz hem bireysel ürünler hem de paketler için kullanılır.
-    public abstract class OrderComponent
+    // The component interface defines operations that can be altered by decorators.
+    public interface IDataSource
     {
-        public abstract string GetName();
-        public abstract double GetPrice();
-        public virtual void Add(OrderComponent component)
+        void WriteData(string data);
+        string ReadData();
+    }
+
+    // Concrete components provide default implementations for the operations.
+    public class FileDataSource : IDataSource
+    {
+        private string _filename;
+
+        public FileDataSource(string filename)
         {
-            throw new NotImplementedException("This operation is not supported.");
+            _filename = filename;
         }
 
-        public virtual void Remove(OrderComponent component)
+        public void WriteData(string data)
         {
-            throw new NotImplementedException("This operation is not supported.");
+            Console.WriteLine($"Writing data to file: {_filename}");
+            // Simulate writing to a file
         }
 
-        public virtual List<OrderComponent> GetItems()
+        public string ReadData()
         {
-            throw new NotImplementedException("This operation is not supported.");
+            Console.WriteLine($"Reading data from file: {_filename}");
+            // Simulate reading from a file
+            return "file data";
         }
     }
 
-    // Leaf: Bireysel Ürün (Tek başına satılan bir ürün)
-    public class Product : OrderComponent
+    // The base decorator class follows the same interface as the other components.
+    public class DataSourceDecorator : IDataSource
     {
-        private string name;
-        private double price;
+        protected IDataSource _wrappee;
 
-        public Product(string name, double price)
+        public DataSourceDecorator(IDataSource source)
         {
-            this.name = name;
-            this.price = price;
+            _wrappee = source;
         }
 
-        public override string GetName()
+        public virtual void WriteData(string data)
         {
-            return name;
+            _wrappee.WriteData(data);
         }
 
-        public override double GetPrice()
+        public virtual string ReadData()
         {
-            return price;
+            return _wrappee.ReadData();
         }
     }
 
-    // Composite: Paket (Birden fazla üründen oluşan kombinasyon)
-    public class ProductBundle : OrderComponent
+    // Concrete decorators must call methods on the wrapped object but may add behavior.
+    public class EncryptionDecorator : DataSourceDecorator
     {
-        private List<OrderComponent> items = new List<OrderComponent>();
-        private string bundleName;
+        public EncryptionDecorator(IDataSource source) : base(source) { }
 
-        public ProductBundle(string name)
+        public override void WriteData(string data)
         {
-            this.bundleName = name;
+            string encryptedData = Encrypt(data);
+            Console.WriteLine("Data has been encrypted.");
+            base.WriteData(encryptedData);
         }
 
-        public override string GetName()
+        public override string ReadData()
         {
-            return bundleName;
+            string data = base.ReadData();
+            string decryptedData = Decrypt(data);
+            Console.WriteLine("Data has been decrypted.");
+            return decryptedData;
         }
 
-        public override double GetPrice()
+        private string Encrypt(string data)
         {
-            double total = 0;
-            foreach (var item in items)
+            // Simulate encryption logic
+            return $"encrypted({data})";
+        }
+
+        private string Decrypt(string data)
+        {
+            // Simulate decryption logic
+            return data.Replace("encrypted(", "").Replace(")", "");
+        }
+    }
+
+    public class CompressionDecorator : DataSourceDecorator
+    {
+        public CompressionDecorator(IDataSource source) : base(source) { }
+
+        public override void WriteData(string data)
+        {
+            string compressedData = Compress(data);
+            Console.WriteLine("Data has been compressed.");
+            base.WriteData(compressedData);
+        }
+
+        public override string ReadData()
+        {
+            string data = base.ReadData();
+            string decompressedData = Decompress(data);
+            Console.WriteLine("Data has been decompressed.");
+            return decompressedData;
+        }
+
+        private string Compress(string data)
+        {
+            // Simulate compression logic
+            return $"compressed({data})";
+        }
+
+        private string Decompress(string data)
+        {
+            // Simulate decompression logic
+            return data.Replace("compressed(", "").Replace(")", "");
+        }
+    }
+
+    // Example client code that uses external data source.
+    public class SalaryManager
+    {
+        private IDataSource _source;
+
+        public SalaryManager(IDataSource source)
+        {
+            _source = source;
+        }
+
+        public void Save(string salaryRecords)
+        {
+            _source.WriteData(salaryRecords);
+        }
+
+        public string Load()
+        {
+            return _source.ReadData();
+        }
+    }
+
+    // Application configurator for assembling decorators.
+    public class ApplicationConfigurator
+    {
+        public void ConfigurationExample(bool enableEncryption, bool enableCompression)
+        {
+            IDataSource source = new FileDataSource("salary.dat");
+
+            if (enableEncryption)
             {
-                total += item.GetPrice();
+                source = new EncryptionDecorator(source);
             }
-            return total;
-        }
 
-        public override void Add(OrderComponent component)
-        {
-            items.Add(component);
-        }
+            if (enableCompression)
+            {
+                source = new CompressionDecorator(source);
+            }
 
-        public override void Remove(OrderComponent component)
-        {
-            items.Remove(component);
-        }
+            SalaryManager manager = new SalaryManager(source);
+            manager.Save("salary data");
 
-        public override List<OrderComponent> GetItems()
-        {
-            return items;
+            string salary = manager.Load();
+            Console.WriteLine($"Loaded salary data: {salary}");
         }
     }
 
-    // Client: Sipariş yönetim sistemi
-    public class OrderSystem
+    class Program
     {
-        private OrderComponent order;
-
-        public OrderSystem(OrderComponent order)
+        static void Main(string[] args)
         {
-            this.order = order;
-        }
+            ApplicationConfigurator configurator = new ApplicationConfigurator();
 
-        public void PrintOrderDetails()
-        {
-            Console.WriteLine($"Order Summary for: {order.GetName()}");
-            Console.WriteLine($"Total Price: {order.GetPrice():C2}");
+            // Example 1: Compression and encryption both enabled
+            Console.WriteLine("Configuration 1: Compression and Encryption Enabled");
+            configurator.ConfigurationExample(enableEncryption: true, enableCompression: true);
 
-            if (order is ProductBundle)
-            {
-                PrintBundleItems(order);
-            }
-        }
+            // Example 2: Only encryption enabled
+            Console.WriteLine("\nConfiguration 2: Only Encryption Enabled");
+            configurator.ConfigurationExample(enableEncryption: true, enableCompression: false);
 
-        private void PrintBundleItems(OrderComponent component)
-        {
-            var items = component.GetItems();
-            foreach (var item in items)
-            {
-                Console.WriteLine($" - {item.GetName()} : {item.GetPrice():C2}");
-                if (item is ProductBundle)
-                {
-                    PrintBundleItems(item); // Nested bundles
-                }
-            }
-        }
-    }
-
-    // Main Program
-    public class Program
-    {
-        public static void Main(string[] args)
-        {
-            // Tekil Ürünler
-            OrderComponent laptop = new Product("Laptop", 1200.00);
-            OrderComponent phone = new Product("Smartphone", 800.00);
-            OrderComponent mouse = new Product("Wireless Mouse", 40.00);
-
-            // Paket: Ofis Paketi
-            ProductBundle officeBundle = new ProductBundle("Office Package");
-            officeBundle.Add(laptop);
-            officeBundle.Add(mouse);
-
-            // Paket: Teknoloji Paketi (İçinde başka bir paket var)
-            ProductBundle techBundle = new ProductBundle("Tech Bundle");
-            techBundle.Add(officeBundle);
-            techBundle.Add(phone);
-
-            // Sipariş sistemi: Teknoloji paketini ve tekil ürünleri içeren bir sipariş oluştur
-            OrderComponent fullOrder = new ProductBundle("Full Order");
-            fullOrder.Add(techBundle);
-
-            // Sipariş detaylarını yazdır
-            OrderSystem orderSystem = new OrderSystem(fullOrder);
-            orderSystem.PrintOrderDetails();
+            // Example 3: No decorators
+            Console.WriteLine("\nConfiguration 3: No Decorators");
+            configurator.ConfigurationExample(enableEncryption: false, enableCompression: false);
         }
     }
 }

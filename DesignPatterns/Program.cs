@@ -1,78 +1,132 @@
 ﻿using System;
-using Newtonsoft.Json;
-using System.Xml;
-using System.Xml.Linq;
 
-// Target interface: Sistem JSON formatını bekliyor.
-public interface IJsonParser
+namespace BridgePatternComplex
 {
-    string GetJsonData();
-}
-
-// Adaptee: XML formatında veri döndüren sınıf.
-public class XmlParser
-{
-    public string GetXmlData()
+    // Abstraction (Payment)
+    public abstract class Payment
     {
-        // Basit bir XML örneği
-        return @"<Employee><Name>John Doe</Name><Position>Software Developer</Position><Department>IT</Department></Employee>";
-    }
-}
+        protected IPaymentProcessor processor;
 
-// Adapter: XML verilerini JSON formatına dönüştürüp sisteme sunuyor.
-public class JsonToXmlAdapter : IJsonParser
-{
-    private XmlParser _xmlParser;
+        public Payment(IPaymentProcessor processor)
+        {
+            this.processor = processor;
+        }
 
-    public JsonToXmlAdapter(XmlParser xmlParser)
-    {
-        _xmlParser = xmlParser;
+        public abstract void MakePayment();
     }
 
-    // XML verisini alıp JSON formatına çeviriyor.
-    public string GetJsonData()
+    // Refined Abstraction (Card Payment)
+    public class CardPayment : Payment
     {
-        string xmlData = _xmlParser.GetXmlData();
-        XmlDocument doc = new XmlDocument();
-        doc.LoadXml(xmlData);
+        private string cardNumber;
+        private double amount;
 
-        // XML'i JSON'a çevir
-        string jsonText = JsonConvert.SerializeXmlNode(doc, Newtonsoft.Json.Formatting.Indented, true);
-        return jsonText;
-    }
-}
+        public CardPayment(IPaymentProcessor processor, string cardNumber, double amount) : base(processor)
+        {
+            this.cardNumber = cardNumber;
+            this.amount = amount;
+        }
 
-// Client: JSON formatında veri bekleyen sistem.
-public class Client
-{
-    private IJsonParser _jsonParser;
-
-    public Client(IJsonParser jsonParser)
-    {
-        _jsonParser = jsonParser;
+        public override void MakePayment()
+        {
+            Console.WriteLine($"Processing card payment of {amount} using card {cardNumber}");
+            processor.ProcessPayment(amount);
+        }
     }
 
-    public void DisplayData()
+    // Refined Abstraction (Bank Transfer Payment)
+    public class BankTransferPayment : Payment
     {
-        string jsonData = _jsonParser.GetJsonData();
-        Console.WriteLine("Data in JSON format:");
-        Console.WriteLine(jsonData);
+        private string accountNumber;
+        private double amount;
+
+        public BankTransferPayment(IPaymentProcessor processor, string accountNumber, double amount) : base(processor)
+        {
+            this.accountNumber = accountNumber;
+            this.amount = amount;
+        }
+
+        public override void MakePayment()
+        {
+            Console.WriteLine($"Processing bank transfer of {amount} from account {accountNumber}");
+            processor.ProcessPayment(amount);
+        }
     }
-}
 
-// Program: JSON formatı isteyen sistemi çalıştırıyoruz.
-public class Program
-{
-    public static void Main(string[] args)
+    // Refined Abstraction (Digital Wallet Payment)
+    public class WalletPayment : Payment
     {
-        // XML formatında veri döndüren bir sistem var
-        XmlParser xmlParser = new XmlParser();
+        private string walletId;
+        private double amount;
 
-        // Adapter kullanarak XML verisini JSON formatına uyarlıyoruz
-        IJsonParser adapter = new JsonToXmlAdapter(xmlParser);
+        public WalletPayment(IPaymentProcessor processor, string walletId, double amount) : base(processor)
+        {
+            this.walletId = walletId;
+            this.amount = amount;
+        }
 
-        // Client JSON formatında veri alıyor
-        Client client = new Client(adapter);
-        client.DisplayData();
+        public override void MakePayment()
+        {
+            Console.WriteLine($"Processing wallet payment of {amount} from wallet ID {walletId}");
+            processor.ProcessPayment(amount);
+        }
+    }
+
+    // Implementation (Payment Processor)
+    public interface IPaymentProcessor
+    {
+        void ProcessPayment(double amount);
+    }
+
+    // Concrete Implementation for PayPal Processor
+    public class PayPalProcessor : IPaymentProcessor
+    {
+        public void ProcessPayment(double amount)
+        {
+            Console.WriteLine($"PayPal processing payment of {amount}");
+            // Simulate PayPal payment logic
+        }
+    }
+
+    // Concrete Implementation for Stripe Processor
+    public class StripeProcessor : IPaymentProcessor
+    {
+        public void ProcessPayment(double amount)
+        {
+            Console.WriteLine($"Stripe processing payment of {amount}");
+            // Simulate Stripe payment logic
+        }
+    }
+
+    // Concrete Implementation for Square Processor
+    public class SquareProcessor : IPaymentProcessor
+    {
+        public void ProcessPayment(double amount)
+        {
+            Console.WriteLine($"Square processing payment of {amount}");
+            // Simulate Square payment logic
+        }
+    }
+
+    // Client Code
+    public class Program
+    {
+        public static void Main(string[] args)
+        {
+            // PayPal with card payment
+            IPaymentProcessor paypalProcessor = new PayPalProcessor();
+            Payment cardPayment = new CardPayment(paypalProcessor, "1234-5678-9012-3456", 250.00);
+            cardPayment.MakePayment();
+
+            // Stripe with bank transfer payment
+            IPaymentProcessor stripeProcessor = new StripeProcessor();
+            Payment bankPayment = new BankTransferPayment(stripeProcessor, "ACC12345678", 1000.00);
+            bankPayment.MakePayment();
+
+            // Square with wallet payment
+            IPaymentProcessor squareProcessor = new SquareProcessor();
+            Payment walletPayment = new WalletPayment(squareProcessor, "WALLET001", 150.00);
+            walletPayment.MakePayment();
+        }
     }
 }

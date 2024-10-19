@@ -1,194 +1,165 @@
 ﻿using System;
 using System.Collections.Generic;
 
-// Base command class
-abstract class Command
+// The collection interface declares a factory method for producing iterators.
+interface ISocialNetwork
 {
-    protected Application app;
-    protected Editor editor;
-    private string backup;
-
-    public Command(Application app, Editor editor)
-    {
-        this.app = app;
-        this.editor = editor;
-    }
-
-    // Backup editor's text
-    protected void SaveBackup()
-    {
-        backup = editor.GetText();
-    }
-
-    // Restore editor's text
-    public void Undo()
-    {
-        editor.SetText(backup);
-    }
-
-    // Execute method must be implemented by concrete commands
-    public abstract bool Execute();
+    IProfileIterator CreateFriendsIterator(string profileId);
+    IProfileIterator CreateCoworkersIterator(string profileId);
 }
 
-// Concrete command for copying text
-class CopyCommand : Command
+// The iterator interface declares methods for traversing a collection.
+interface IProfileIterator
 {
-    public CopyCommand(Application app, Editor editor) : base(app, editor) { }
-
-    public override bool Execute()
-    {
-        app.Clipboard = editor.GetSelection();
-        return false; // Copy doesn't modify editor state
-    }
+    bool HasMore();
+    Profile GetNext();
 }
 
-// Concrete command for cutting text
-class CutCommand : Command
+// The concrete iterator class implements traversal logic for a specific collection.
+class FacebookIterator : IProfileIterator
 {
-    public CutCommand(Application app, Editor editor) : base(app, editor) { }
+    private Facebook _facebook;
+    private string _profileId;
+    private string _type;
+    private int _currentPosition;
+    private List<Profile> _cache;
 
-    public override bool Execute()
+    public FacebookIterator(Facebook facebook, string profileId, string type)
     {
-        SaveBackup();
-        app.Clipboard = editor.GetSelection();
-        editor.DeleteSelection();
-        return true; // Cut modifies editor state
-    }
-}
-
-// Concrete command for pasting text
-class PasteCommand : Command
-{
-    public PasteCommand(Application app, Editor editor) : base(app, editor) { }
-
-    public override bool Execute()
-    {
-        SaveBackup();
-        editor.ReplaceSelection(app.Clipboard);
-        return true; // Paste modifies editor state
-    }
-}
-
-// Command for undoing operations
-class UndoCommand : Command
-{
-    public UndoCommand(Application app, Editor editor) : base(app, editor) { }
-
-    public override bool Execute()
-    {
-        app.Undo();
-        return false; // Undo does not modify editor state
-    }
-}
-
-// Command history stack (LIFO)
-class CommandHistory
-{
-    private Stack<Command> history = new Stack<Command>();
-
-    public void Push(Command command)
-    {
-        history.Push(command);
+        _facebook = facebook;
+        _profileId = profileId;
+        _type = type;
+        _currentPosition = 0;
+        _cache = null;
     }
 
-    public Command Pop()
+    // Initializes the cache lazily
+    private void LazyInit()
     {
-        if (history.Count > 0)
-            return history.Pop();
+        if (_cache == null)
+        {
+            _cache = _facebook.SocialGraphRequest(_profileId, _type);
+        }
+    }
+
+    public bool HasMore()
+    {
+        LazyInit();
+        return _currentPosition < _cache.Count;
+    }
+
+    public Profile GetNext()
+    {
+        if (HasMore())
+        {
+            return _cache[_currentPosition++];
+        }
         return null;
     }
 }
 
-// Editor class, simulates text editing functionality
-class Editor
+// The concrete collection class implements the collection interface and returns specific iterators.
+class Facebook : ISocialNetwork
 {
-    private string text = "";
-
-    public string GetSelection()
+    public IProfileIterator CreateFriendsIterator(string profileId)
     {
-        // In a real scenario, this would return the selected text
-        return text;
+        return new FacebookIterator(this, profileId, "friends");
     }
 
-    public void DeleteSelection()
+    public IProfileIterator CreateCoworkersIterator(string profileId)
     {
-        // In a real scenario, this would delete the selected text
-        text = "";
+        return new FacebookIterator(this, profileId, "coworkers");
     }
 
-    public void ReplaceSelection(string clipboard)
+    // Simulate a request to Facebook's database
+    public List<Profile> SocialGraphRequest(string profileId, string type)
     {
-        // Replace selection with clipboard content
-        text = clipboard;
-    }
-
-    public string GetText()
-    {
-        return text;
-    }
-
-    public void SetText(string text)
-    {
-        this.text = text;
+        // In a real-world scenario, this method would make an API call to Facebook.
+        // Here we'll simulate the return of a list of profiles.
+        return new List<Profile>
+        {
+            new Profile("1", "John Doe", "john.doe@example.com"),
+            new Profile("2", "Jane Smith", "jane.smith@example.com"),
+            new Profile("3", "Emily Johnson", "emily.johnson@example.com")
+        };
     }
 }
 
-// Application class, which sets up the commands and manages undo
+// The Profile class represents an individual profile.
+class Profile
+{
+    public string Id { get; }
+    public string Name { get; }
+    public string Email { get; }
+
+    public Profile(string id, string name, string email)
+    {
+        Id = id;
+        Name = name;
+        Email = email;
+    }
+
+    public string GetEmail()
+    {
+        return Email;
+    }
+}
+
+// The SocialSpammer class uses an iterator to send spam messages.
+class SocialSpammer
+{
+    public void Send(IProfileIterator iterator, string message)
+    {
+        while (iterator.HasMore())
+        {
+            Profile profile = iterator.GetNext();
+            Console.WriteLine($"Sending email to {profile.GetEmail()}: {message}");
+        }
+    }
+}
+
+// The application class configures collections and iterators and then passes them to the client code.
 class Application
 {
-    public string Clipboard { get; set; }
-    private Editor activeEditor;
-    private CommandHistory history = new CommandHistory();
+    private ISocialNetwork _network;
+    private SocialSpammer _spammer;
 
-    public Application(Editor editor)
+    public void Config(bool useFacebook)
     {
-        this.activeEditor = editor;
-    }
-
-    public void ExecuteCommand(Command command)
-    {
-        if (command.Execute())
+        if (useFacebook)
         {
-            history.Push(command);
+            _network = new Facebook();
         }
+        // LinkedIn or other social networks can be added similarly.
+
+        _spammer = new SocialSpammer();
     }
 
-    public void Undo()
+    public void SendSpamToFriends(string profileId)
     {
-        Command command = history.Pop();
-        if (command != null)
-        {
-            command.Undo();
-        }
+        IProfileIterator iterator = _network.CreateFriendsIterator(profileId);
+        _spammer.Send(iterator, "Hey, don't miss this opportunity!");
     }
 
-    // Method to simulate UI command binding
-    public void BindCommands()
+    public void SendSpamToCoworkers(string profileId)
     {
-        // Example: Cut
-        Console.WriteLine("Performing Cut:");
-        ExecuteCommand(new CutCommand(this, activeEditor));
-
-        // Example: Paste
-        Console.WriteLine("Performing Paste:");
-        ExecuteCommand(new PasteCommand(this, activeEditor));
-
-        // Example: Undo
-        Console.WriteLine("Performing Undo:");
-        Undo();
+        IProfileIterator iterator = _network.CreateCoworkersIterator(profileId);
+        _spammer.Send(iterator, "Join our upcoming work event!");
     }
 }
 
 // Client code
 class Program
 {
-    static void Main()
+    static void Main(string[] args)
     {
-        Editor editor = new Editor();
-        Application app = new Application(editor);
+        Application app = new Application();
+        app.Config(true);
 
-        // Simulate some editor operations
-        editor.SetText("This is some text.");
-        app.BindCommands();
+        Console.WriteLine("Sending spam to friends:");
+        app.SendSpamToFriends("profile123");
+
+        Console.WriteLine("\nSending spam to coworkers:");
+        app.SendSpamToCoworkers("profile123");
     }
 }

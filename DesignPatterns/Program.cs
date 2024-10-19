@@ -1,76 +1,161 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace CachingProxyPattern
+// The handler interface declares a method for executing a request.
+public interface IComponentWithContextualHelp
 {
-    // Subject: Kullanıcı verisi arayüzü
-    public interface IUserService
+    void ShowHelp();
+}
+
+// Base class for simple components.
+public abstract class Component : IComponentWithContextualHelp
+{
+    protected string? TooltipText { get; set; }
+    private Container? _container; // Container that acts as the next link in the chain
+
+    // Public method to set the container
+    public void SetContainer(Container container)
     {
-        string GetUserDetails(int userId);
+        _container = container;
     }
 
-    // RealSubject: Gerçek kullanıcı verisi sağlayan sınıf (örneğin bir veritabanı)
-    public class UserService : IUserService
+    // The component shows a tooltip if there's help text.
+    // Otherwise, it forwards the call to the container, if it exists.
+    public virtual void ShowHelp()
     {
-        public string GetUserDetails(int userId)
+        if (!string.IsNullOrEmpty(TooltipText))
         {
-            // Veritabanına sorgu simülasyonu
-            Console.WriteLine($"Fetching details for user {userId} from the database...");
-            return $"User{userId} Details: Name - John Doe, Age - 30";
+            Console.WriteLine($"Showing tooltip: {TooltipText}");
+        }
+        else if (_container != null)
+        {
+            _container.ShowHelp();  // Forward the call to the container
         }
     }
+}
 
-    // Proxy: Kullanıcı verilerini önbellekte tutan önbellek proxy sınıfı
-    public class UserServiceProxy : IUserService
+// Containers can contain both simple components and other containers.
+// Chain relationships are established here.
+public abstract class Container : Component
+{
+    protected List<Component> Children = new List<Component>();
+
+    public void Add(Component child)
     {
-        private UserService _realUserService;
-        private Dictionary<int, string> _cache;
-
-        public UserServiceProxy()
-        {
-            _realUserService = new UserService();
-            _cache = new Dictionary<int, string>();
-        }
-
-        public string GetUserDetails(int userId)
-        {
-            if (_cache.ContainsKey(userId))
-            {
-                Console.WriteLine($"Returning cached data for user {userId}");
-                return _cache[userId];
-            }
-            else
-            {
-                // Veri önbellekte yoksa veritabanından getiriliyor
-                string userDetails = _realUserService.GetUserDetails(userId);
-                _cache[userId] = userDetails; // Sonuç önbelleğe kaydediliyor
-                return userDetails;
-            }
-        }
+        Children.Add(child);
+        child.SetContainer(this);  // Use the public method to set container
     }
 
-    // Client code
-    class Program
+    // Public method to access the children
+    public List<Component> GetChildren()
     {
-        static void Main(string[] args)
+        return Children;
+    }
+}
+
+// Simple component (leaf) such as a button.
+public class Button : Component
+{
+    public Button(string tooltip)
+    {
+        this.TooltipText = tooltip;
+    }
+}
+
+// Complex component (composite) such as a panel that may override the default implementation.
+public class Panel : Container
+{
+    public string? ModalHelpText { get; set; }
+
+    public override void ShowHelp()
+    {
+        if (!string.IsNullOrEmpty(ModalHelpText))
         {
-            // Proxy ile kullanıcı servisi oluşturuluyor
-            IUserService userService = new UserServiceProxy();
+            Console.WriteLine($"Showing modal help: {ModalHelpText}");
+        }
+        else
+        {
+            base.ShowHelp();  // Call the base implementation if no modal help
+        }
+    }
+}
 
-            // İlk istekte veritabanından veri çekiliyor
-            Console.WriteLine(userService.GetUserDetails(1));
-            Console.WriteLine();
+// Another complex component (composite) such as a dialog with potential wiki page help.
+public class Dialog : Container
+{
+    public string? WikiPageUrl { get; set; }
 
-            // İkinci istekte aynı veri önbellekten getiriliyor
-            Console.WriteLine(userService.GetUserDetails(1));
-            Console.WriteLine();
+    public override void ShowHelp()
+    {
+        if (!string.IsNullOrEmpty(WikiPageUrl))
+        {
+            Console.WriteLine($"Opening wiki help page: {WikiPageUrl}");
+        }
+        else
+        {
+            base.ShowHelp();  // Forward to parent if no help is provided
+        }
+    }
+}
 
-            // Farklı bir kullanıcı için veri çekiliyor (veritabanından)
-            Console.WriteLine(userService.GetUserDetails(2));
-            Console.WriteLine();
+// Client code.
+public class Application
+{
+    private Dialog? dialog;
 
-            // Aynı kullanıcı için önbelleğe alınmış veri getiriliyor
-            Console.WriteLine(userService.GetUserDetails(2));
+    // Configures the chain of responsibility
+    public void CreateUI()
+    {
+        dialog = new Dialog();
+        dialog.WikiPageUrl = "http://help.wiki/BudgetReports";
+
+        Panel panel = new Panel();
+        panel.ModalHelpText = "This panel shows financial data.";
+
+        Button okButton = new Button("This is the OK button.");
+        Button cancelButton = new Button(null); // No tooltip for this button
+
+        panel.Add(okButton);
+        panel.Add(cancelButton);
+        dialog.Add(panel);
+    }
+
+    // When F1 key is pressed, it will check the component at mouse coordinates.
+    public void OnF1KeyPress(Component component)
+    {
+        component.ShowHelp();  // Start the chain of responsibility
+    }
+
+    // Simulate getting the component at mouse coordinates
+    public Component GetComponentAtMouseCoords()
+    {
+        // Casting Component to Container to access GetChildren
+        var panel = dialog.GetChildren()[0] as Container;
+        if (panel != null)
+        {
+            return panel.GetChildren()[1]; // Cancel button
+        }
+        return null;
+    }
+}
+
+// Main program
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        Application app = new Application();
+        app.CreateUI();
+
+        // Simulating F1 key press
+        Component component = app.GetComponentAtMouseCoords();
+        if (component != null)
+        {
+            app.OnF1KeyPress(component);  // This should propagate the help request up the chain
+        }
+        else
+        {
+            Console.WriteLine("No component found at mouse coordinates.");
         }
     }
 }

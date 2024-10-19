@@ -1,78 +1,165 @@
 ﻿using System;
-using Newtonsoft.Json;
-using System.Xml;
-using System.Xml.Linq;
+using System.Collections.Generic;
 
-// Target interface: Sistem JSON formatını bekliyor.
-public interface IJsonParser
+// The collection interface declares a factory method for producing iterators.
+interface ISocialNetwork
 {
-    string GetJsonData();
+    IProfileIterator CreateFriendsIterator(string profileId);
+    IProfileIterator CreateCoworkersIterator(string profileId);
 }
 
-// Adaptee: XML formatında veri döndüren sınıf.
-public class XmlParser
+// The iterator interface declares methods for traversing a collection.
+interface IProfileIterator
 {
-    public string GetXmlData()
+    bool HasMore();
+    Profile GetNext();
+}
+
+// The concrete iterator class implements traversal logic for a specific collection.
+class FacebookIterator : IProfileIterator
+{
+    private Facebook _facebook;
+    private string _profileId;
+    private string _type;
+    private int _currentPosition;
+    private List<Profile> _cache;
+
+    public FacebookIterator(Facebook facebook, string profileId, string type)
     {
-        // Basit bir XML örneği
-        return @"<Employee><Name>John Doe</Name><Position>Software Developer</Position><Department>IT</Department></Employee>";
+        _facebook = facebook;
+        _profileId = profileId;
+        _type = type;
+        _currentPosition = 0;
+        _cache = null;
+    }
+
+    // Initializes the cache lazily
+    private void LazyInit()
+    {
+        if (_cache == null)
+        {
+            _cache = _facebook.SocialGraphRequest(_profileId, _type);
+        }
+    }
+
+    public bool HasMore()
+    {
+        LazyInit();
+        return _currentPosition < _cache.Count;
+    }
+
+    public Profile GetNext()
+    {
+        if (HasMore())
+        {
+            return _cache[_currentPosition++];
+        }
+        return null;
     }
 }
 
-// Adapter: XML verilerini JSON formatına dönüştürüp sisteme sunuyor.
-public class JsonToXmlAdapter : IJsonParser
+// The concrete collection class implements the collection interface and returns specific iterators.
+class Facebook : ISocialNetwork
 {
-    private XmlParser _xmlParser;
-
-    public JsonToXmlAdapter(XmlParser xmlParser)
+    public IProfileIterator CreateFriendsIterator(string profileId)
     {
-        _xmlParser = xmlParser;
+        return new FacebookIterator(this, profileId, "friends");
     }
 
-    // XML verisini alıp JSON formatına çeviriyor.
-    public string GetJsonData()
+    public IProfileIterator CreateCoworkersIterator(string profileId)
     {
-        string xmlData = _xmlParser.GetXmlData();
-        XmlDocument doc = new XmlDocument();
-        doc.LoadXml(xmlData);
+        return new FacebookIterator(this, profileId, "coworkers");
+    }
 
-        // XML'i JSON'a çevir
-        string jsonText = JsonConvert.SerializeXmlNode(doc, Newtonsoft.Json.Formatting.Indented, true);
-        return jsonText;
+    // Simulate a request to Facebook's database
+    public List<Profile> SocialGraphRequest(string profileId, string type)
+    {
+        // In a real-world scenario, this method would make an API call to Facebook.
+        // Here we'll simulate the return of a list of profiles.
+        return new List<Profile>
+        {
+            new Profile("1", "John Doe", "john.doe@example.com"),
+            new Profile("2", "Jane Smith", "jane.smith@example.com"),
+            new Profile("3", "Emily Johnson", "emily.johnson@example.com")
+        };
     }
 }
 
-// Client: JSON formatında veri bekleyen sistem.
-public class Client
+// The Profile class represents an individual profile.
+class Profile
 {
-    private IJsonParser _jsonParser;
+    public string Id { get; }
+    public string Name { get; }
+    public string Email { get; }
 
-    public Client(IJsonParser jsonParser)
+    public Profile(string id, string name, string email)
     {
-        _jsonParser = jsonParser;
+        Id = id;
+        Name = name;
+        Email = email;
     }
 
-    public void DisplayData()
+    public string GetEmail()
     {
-        string jsonData = _jsonParser.GetJsonData();
-        Console.WriteLine("Data in JSON format:");
-        Console.WriteLine(jsonData);
+        return Email;
     }
 }
 
-// Program: JSON formatı isteyen sistemi çalıştırıyoruz.
-public class Program
+// The SocialSpammer class uses an iterator to send spam messages.
+class SocialSpammer
 {
-    public static void Main(string[] args)
+    public void Send(IProfileIterator iterator, string message)
     {
-        // XML formatında veri döndüren bir sistem var
-        XmlParser xmlParser = new XmlParser();
+        while (iterator.HasMore())
+        {
+            Profile profile = iterator.GetNext();
+            Console.WriteLine($"Sending email to {profile.GetEmail()}: {message}");
+        }
+    }
+}
 
-        // Adapter kullanarak XML verisini JSON formatına uyarlıyoruz
-        IJsonParser adapter = new JsonToXmlAdapter(xmlParser);
+// The application class configures collections and iterators and then passes them to the client code.
+class Application
+{
+    private ISocialNetwork _network;
+    private SocialSpammer _spammer;
 
-        // Client JSON formatında veri alıyor
-        Client client = new Client(adapter);
-        client.DisplayData();
+    public void Config(bool useFacebook)
+    {
+        if (useFacebook)
+        {
+            _network = new Facebook();
+        }
+        // LinkedIn or other social networks can be added similarly.
+
+        _spammer = new SocialSpammer();
+    }
+
+    public void SendSpamToFriends(string profileId)
+    {
+        IProfileIterator iterator = _network.CreateFriendsIterator(profileId);
+        _spammer.Send(iterator, "Hey, don't miss this opportunity!");
+    }
+
+    public void SendSpamToCoworkers(string profileId)
+    {
+        IProfileIterator iterator = _network.CreateCoworkersIterator(profileId);
+        _spammer.Send(iterator, "Join our upcoming work event!");
+    }
+}
+
+// Client code
+class Program
+{
+    static void Main(string[] args)
+    {
+        Application app = new Application();
+        app.Config(true);
+
+        Console.WriteLine("Sending spam to friends:");
+        app.SendSpamToFriends("profile123");
+
+        Console.WriteLine("\nSending spam to coworkers:");
+        app.SendSpamToCoworkers("profile123");
     }
 }

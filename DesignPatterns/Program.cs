@@ -1,161 +1,194 @@
 ﻿using System;
 using System.Collections.Generic;
 
-// The handler interface declares a method for executing a request.
-public interface IComponentWithContextualHelp
+// Base command class
+abstract class Command
 {
-    void ShowHelp();
+    protected Application app;
+    protected Editor editor;
+    private string backup;
+
+    public Command(Application app, Editor editor)
+    {
+        this.app = app;
+        this.editor = editor;
+    }
+
+    // Backup editor's text
+    protected void SaveBackup()
+    {
+        backup = editor.GetText();
+    }
+
+    // Restore editor's text
+    public void Undo()
+    {
+        editor.SetText(backup);
+    }
+
+    // Execute method must be implemented by concrete commands
+    public abstract bool Execute();
 }
 
-// Base class for simple components.
-public abstract class Component : IComponentWithContextualHelp
+// Concrete command for copying text
+class CopyCommand : Command
 {
-    protected string? TooltipText { get; set; }
-    private Container? _container; // Container that acts as the next link in the chain
+    public CopyCommand(Application app, Editor editor) : base(app, editor) { }
 
-    // Public method to set the container
-    public void SetContainer(Container container)
+    public override bool Execute()
     {
-        _container = container;
-    }
-
-    // The component shows a tooltip if there's help text.
-    // Otherwise, it forwards the call to the container, if it exists.
-    public virtual void ShowHelp()
-    {
-        if (!string.IsNullOrEmpty(TooltipText))
-        {
-            Console.WriteLine($"Showing tooltip: {TooltipText}");
-        }
-        else if (_container != null)
-        {
-            _container.ShowHelp();  // Forward the call to the container
-        }
-    }
-}
-
-// Containers can contain both simple components and other containers.
-// Chain relationships are established here.
-public abstract class Container : Component
-{
-    protected List<Component> Children = new List<Component>();
-
-    public void Add(Component child)
-    {
-        Children.Add(child);
-        child.SetContainer(this);  // Use the public method to set container
-    }
-
-    // Public method to access the children
-    public List<Component> GetChildren()
-    {
-        return Children;
+        app.Clipboard = editor.GetSelection();
+        return false; // Copy doesn't modify editor state
     }
 }
 
-// Simple component (leaf) such as a button.
-public class Button : Component
+// Concrete command for cutting text
+class CutCommand : Command
 {
-    public Button(string tooltip)
+    public CutCommand(Application app, Editor editor) : base(app, editor) { }
+
+    public override bool Execute()
     {
-        this.TooltipText = tooltip;
+        SaveBackup();
+        app.Clipboard = editor.GetSelection();
+        editor.DeleteSelection();
+        return true; // Cut modifies editor state
     }
 }
 
-// Complex component (composite) such as a panel that may override the default implementation.
-public class Panel : Container
+// Concrete command for pasting text
+class PasteCommand : Command
 {
-    public string? ModalHelpText { get; set; }
+    public PasteCommand(Application app, Editor editor) : base(app, editor) { }
 
-    public override void ShowHelp()
+    public override bool Execute()
     {
-        if (!string.IsNullOrEmpty(ModalHelpText))
-        {
-            Console.WriteLine($"Showing modal help: {ModalHelpText}");
-        }
-        else
-        {
-            base.ShowHelp();  // Call the base implementation if no modal help
-        }
+        SaveBackup();
+        editor.ReplaceSelection(app.Clipboard);
+        return true; // Paste modifies editor state
     }
 }
 
-// Another complex component (composite) such as a dialog with potential wiki page help.
-public class Dialog : Container
+// Command for undoing operations
+class UndoCommand : Command
 {
-    public string? WikiPageUrl { get; set; }
+    public UndoCommand(Application app, Editor editor) : base(app, editor) { }
 
-    public override void ShowHelp()
+    public override bool Execute()
     {
-        if (!string.IsNullOrEmpty(WikiPageUrl))
-        {
-            Console.WriteLine($"Opening wiki help page: {WikiPageUrl}");
-        }
-        else
-        {
-            base.ShowHelp();  // Forward to parent if no help is provided
-        }
+        app.Undo();
+        return false; // Undo does not modify editor state
     }
 }
 
-// Client code.
-public class Application
+// Command history stack (LIFO)
+class CommandHistory
 {
-    private Dialog? dialog;
+    private Stack<Command> history = new Stack<Command>();
 
-    // Configures the chain of responsibility
-    public void CreateUI()
+    public void Push(Command command)
     {
-        dialog = new Dialog();
-        dialog.WikiPageUrl = "http://help.wiki/BudgetReports";
-
-        Panel panel = new Panel();
-        panel.ModalHelpText = "This panel shows financial data.";
-
-        Button okButton = new Button("This is the OK button.");
-        Button cancelButton = new Button(null); // No tooltip for this button
-
-        panel.Add(okButton);
-        panel.Add(cancelButton);
-        dialog.Add(panel);
+        history.Push(command);
     }
 
-    // When F1 key is pressed, it will check the component at mouse coordinates.
-    public void OnF1KeyPress(Component component)
+    public Command Pop()
     {
-        component.ShowHelp();  // Start the chain of responsibility
-    }
-
-    // Simulate getting the component at mouse coordinates
-    public Component GetComponentAtMouseCoords()
-    {
-        // Casting Component to Container to access GetChildren
-        var panel = dialog.GetChildren()[0] as Container;
-        if (panel != null)
-        {
-            return panel.GetChildren()[1]; // Cancel button
-        }
+        if (history.Count > 0)
+            return history.Pop();
         return null;
     }
 }
 
-// Main program
-public class Program
+// Editor class, simulates text editing functionality
+class Editor
 {
-    public static void Main(string[] args)
-    {
-        Application app = new Application();
-        app.CreateUI();
+    private string text = "";
 
-        // Simulating F1 key press
-        Component component = app.GetComponentAtMouseCoords();
-        if (component != null)
+    public string GetSelection()
+    {
+        // In a real scenario, this would return the selected text
+        return text;
+    }
+
+    public void DeleteSelection()
+    {
+        // In a real scenario, this would delete the selected text
+        text = "";
+    }
+
+    public void ReplaceSelection(string clipboard)
+    {
+        // Replace selection with clipboard content
+        text = clipboard;
+    }
+
+    public string GetText()
+    {
+        return text;
+    }
+
+    public void SetText(string text)
+    {
+        this.text = text;
+    }
+}
+
+// Application class, which sets up the commands and manages undo
+class Application
+{
+    public string Clipboard { get; set; }
+    private Editor activeEditor;
+    private CommandHistory history = new CommandHistory();
+
+    public Application(Editor editor)
+    {
+        this.activeEditor = editor;
+    }
+
+    public void ExecuteCommand(Command command)
+    {
+        if (command.Execute())
         {
-            app.OnF1KeyPress(component);  // This should propagate the help request up the chain
+            history.Push(command);
         }
-        else
+    }
+
+    public void Undo()
+    {
+        Command command = history.Pop();
+        if (command != null)
         {
-            Console.WriteLine("No component found at mouse coordinates.");
+            command.Undo();
         }
+    }
+
+    // Method to simulate UI command binding
+    public void BindCommands()
+    {
+        // Example: Cut
+        Console.WriteLine("Performing Cut:");
+        ExecuteCommand(new CutCommand(this, activeEditor));
+
+        // Example: Paste
+        Console.WriteLine("Performing Paste:");
+        ExecuteCommand(new PasteCommand(this, activeEditor));
+
+        // Example: Undo
+        Console.WriteLine("Performing Undo:");
+        Undo();
+    }
+}
+
+// Client code
+class Program
+{
+    static void Main()
+    {
+        Editor editor = new Editor();
+        Application app = new Application(editor);
+
+        // Simulate some editor operations
+        editor.SetText("This is some text.");
+        app.BindCommands();
     }
 }

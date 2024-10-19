@@ -1,165 +1,156 @@
 ﻿using System;
-using System.Collections.Generic;
 
-// The collection interface declares a factory method for producing iterators.
-interface ISocialNetwork
+// Mediator interface
+public interface IMediator
 {
-    IProfileIterator CreateFriendsIterator(string profileId);
-    IProfileIterator CreateCoworkersIterator(string profileId);
+    void Notify(object sender, string ev);
 }
 
-// The iterator interface declares methods for traversing a collection.
-interface IProfileIterator
+// Concrete Mediator (PolicyManagementMediator)
+public class PolicyManagementMediator : IMediator
 {
-    bool HasMore();
-    Profile GetNext();
-}
+    private Dropdown _policyTypeDropdown;
+    private Textbox _customerName;
+    private Textbox _policyNumber;
+    private Textbox _healthDetails;
+    private Textbox _vehicleDetails;
+    private Button _submitButton;
 
-// The concrete iterator class implements traversal logic for a specific collection.
-class FacebookIterator : IProfileIterator
-{
-    private Facebook _facebook;
-    private string _profileId;
-    private string _type;
-    private int _currentPosition;
-    private List<Profile> _cache;
-
-    public FacebookIterator(Facebook facebook, string profileId, string type)
+    public PolicyManagementMediator()
     {
-        _facebook = facebook;
-        _profileId = profileId;
-        _type = type;
-        _currentPosition = 0;
-        _cache = null;
+        // Bileşenler oluşturulur ve mediator atanır
+        _policyTypeDropdown = new Dropdown(this);
+        _customerName = new Textbox(this);
+        _policyNumber = new Textbox(this);
+        _healthDetails = new Textbox(this);
+        _vehicleDetails = new Textbox(this);
+        _submitButton = new Button(this);
     }
 
-    // Initializes the cache lazily
-    private void LazyInit()
+    public void Notify(object sender, string ev)
     {
-        if (_cache == null)
+        if (sender == _policyTypeDropdown && ev == "change")
         {
-            _cache = _facebook.SocialGraphRequest(_profileId, _type);
+            string selectedPolicy = _policyTypeDropdown.GetSelectedOption();
+            if (selectedPolicy == "Health")
+            {
+                ShowHealthPolicyForm();
+                HideVehiclePolicyForm();
+            }
+            else if (selectedPolicy == "Vehicle")
+            {
+                ShowVehiclePolicyForm();
+                HideHealthPolicyForm();
+            }
+        }
+
+        if (sender == _submitButton && ev == "click")
+        {
+            string policyType = _policyTypeDropdown.GetSelectedOption();
+            Console.WriteLine("Submitting " + policyType + " policy for customer: " + _customerName.Text);
         }
     }
 
-    public bool HasMore()
+    private void ShowHealthPolicyForm()
     {
-        LazyInit();
-        return _currentPosition < _cache.Count;
+        Console.WriteLine("Showing Health Policy form.");
+        _healthDetails.Visible = true;
     }
 
-    public Profile GetNext()
+    private void HideHealthPolicyForm()
     {
-        if (HasMore())
-        {
-            return _cache[_currentPosition++];
-        }
-        return null;
+        Console.WriteLine("Hiding Health Policy form.");
+        _healthDetails.Visible = false;
+    }
+
+    private void ShowVehiclePolicyForm()
+    {
+        Console.WriteLine("Showing Vehicle Policy form.");
+        _vehicleDetails.Visible = true;
+    }
+
+    private void HideVehiclePolicyForm()
+    {
+        Console.WriteLine("Hiding Vehicle Policy form.");
+        _vehicleDetails.Visible = false;
     }
 }
 
-// The concrete collection class implements the collection interface and returns specific iterators.
-class Facebook : ISocialNetwork
+// Base component class
+public class Component
 {
-    public IProfileIterator CreateFriendsIterator(string profileId)
+    protected IMediator _mediator;
+
+    public Component(IMediator mediator)
     {
-        return new FacebookIterator(this, profileId, "friends");
+        _mediator = mediator;
     }
 
-    public IProfileIterator CreateCoworkersIterator(string profileId)
+    public void Click()
     {
-        return new FacebookIterator(this, profileId, "coworkers");
+        _mediator.Notify(this, "click");
     }
 
-    // Simulate a request to Facebook's database
-    public List<Profile> SocialGraphRequest(string profileId, string type)
+    public void Change()
     {
-        // In a real-world scenario, this method would make an API call to Facebook.
-        // Here we'll simulate the return of a list of profiles.
-        return new List<Profile>
-        {
-            new Profile("1", "John Doe", "john.doe@example.com"),
-            new Profile("2", "Jane Smith", "jane.smith@example.com"),
-            new Profile("3", "Emily Johnson", "emily.johnson@example.com")
-        };
+        _mediator.Notify(this, "change");
     }
 }
 
-// The Profile class represents an individual profile.
-class Profile
+// Dropdown component
+public class Dropdown : Component
 {
-    public string Id { get; }
-    public string Name { get; }
-    public string Email { get; }
+    private string _selectedOption;
 
-    public Profile(string id, string name, string email)
+    public Dropdown(IMediator mediator) : base(mediator) { }
+
+    public void SelectOption(string option)
     {
-        Id = id;
-        Name = name;
-        Email = email;
+        _selectedOption = option;
+        Change();
     }
 
-    public string GetEmail()
+    public string GetSelectedOption()
     {
-        return Email;
+        return _selectedOption;
     }
 }
 
-// The SocialSpammer class uses an iterator to send spam messages.
-class SocialSpammer
+// Textbox component
+public class Textbox : Component
 {
-    public void Send(IProfileIterator iterator, string message)
+    public string Text { get; set; }
+    public bool Visible { get; set; }
+
+    public Textbox(IMediator mediator) : base(mediator)
     {
-        while (iterator.HasMore())
-        {
-            Profile profile = iterator.GetNext();
-            Console.WriteLine($"Sending email to {profile.GetEmail()}: {message}");
-        }
+        Visible = true;
     }
 }
 
-// The application class configures collections and iterators and then passes them to the client code.
-class Application
+// Button component
+public class Button : Component
 {
-    private ISocialNetwork _network;
-    private SocialSpammer _spammer;
-
-    public void Config(bool useFacebook)
-    {
-        if (useFacebook)
-        {
-            _network = new Facebook();
-        }
-        // LinkedIn or other social networks can be added similarly.
-
-        _spammer = new SocialSpammer();
-    }
-
-    public void SendSpamToFriends(string profileId)
-    {
-        IProfileIterator iterator = _network.CreateFriendsIterator(profileId);
-        _spammer.Send(iterator, "Hey, don't miss this opportunity!");
-    }
-
-    public void SendSpamToCoworkers(string profileId)
-    {
-        IProfileIterator iterator = _network.CreateCoworkersIterator(profileId);
-        _spammer.Send(iterator, "Join our upcoming work event!");
-    }
+    public Button(IMediator mediator) : base(mediator) { }
 }
 
-// Client code
+// Client code (Main program)
 class Program
 {
     static void Main(string[] args)
     {
-        Application app = new Application();
-        app.Config(true);
+        PolicyManagementMediator mediator = new PolicyManagementMediator();
 
-        Console.WriteLine("Sending spam to friends:");
-        app.SendSpamToFriends("profile123");
+        // Kullanıcı Sağlık Sigortası seçiyor
+        Console.WriteLine("User selected Health Policy:");
+        Dropdown policyDropdown = new Dropdown(mediator);
+        policyDropdown.SelectOption("Health");
+        Button submitButton = new Button(mediator);
+        submitButton.Click();
 
-        Console.WriteLine("\nSending spam to coworkers:");
-        app.SendSpamToCoworkers("profile123");
+        // Kullanıcı Araç Sigortası seçiyor
+        Console.WriteLine("\nUser selected Vehicle Policy:");
+        policyDropdown.SelectOption("Vehicle");
+        submitButton.Click();
     }
 }

@@ -1,156 +1,104 @@
 ﻿using System;
+using System.Collections.Generic;
 
-// Mediator interface
-public interface IMediator
+// Originator class: Sigorta poliçesi bilgilerini yönetir
+public class Policy
 {
-    void Notify(object sender, string ev);
-}
+    public string PolicyNumber { get; set; }
+    public string PolicyHolder { get; set; }
+    public decimal PremiumAmount { get; set; }
 
-// Concrete Mediator (PolicyManagementMediator)
-public class PolicyManagementMediator : IMediator
-{
-    private Dropdown _policyTypeDropdown;
-    private Textbox _customerName;
-    private Textbox _policyNumber;
-    private Textbox _healthDetails;
-    private Textbox _vehicleDetails;
-    private Button _submitButton;
-
-    public PolicyManagementMediator()
+    // Mevcut durumu Memento'da saklar
+    public PolicyMemento Save()
     {
-        // Bileşenler oluşturulur ve mediator atanır
-        _policyTypeDropdown = new Dropdown(this);
-        _customerName = new Textbox(this);
-        _policyNumber = new Textbox(this);
-        _healthDetails = new Textbox(this);
-        _vehicleDetails = new Textbox(this);
-        _submitButton = new Button(this);
+        return new PolicyMemento(PolicyNumber, PolicyHolder, PremiumAmount);
     }
 
-    public void Notify(object sender, string ev)
+    // Memento'dan geri yükleme yapar
+    public void Restore(PolicyMemento memento)
     {
-        if (sender == _policyTypeDropdown && ev == "change")
+        PolicyNumber = memento.SavedPolicyNumber;
+        PolicyHolder = memento.SavedPolicyHolder;
+        PremiumAmount = memento.SavedPremiumAmount;
+    }
+
+    // Poliçe detaylarını yazdıran bir metod
+    public void ShowPolicyDetails()
+    {
+        Console.WriteLine($"Policy Number: {PolicyNumber}, Policy Holder: {PolicyHolder}, Premium: {PremiumAmount}");
+    }
+}
+
+// Memento class: Poliçenin bir kopyasını saklar
+public class PolicyMemento
+{
+    public string SavedPolicyNumber { get; private set; }
+    public string SavedPolicyHolder { get; private set; }
+    public decimal SavedPremiumAmount { get; private set; }
+
+    public PolicyMemento(string policyNumber, string policyHolder, decimal premiumAmount)
+    {
+        SavedPolicyNumber = policyNumber;
+        SavedPolicyHolder = policyHolder;
+        SavedPremiumAmount = premiumAmount;
+    }
+}
+
+// Caretaker class: Poliçe mementolarını yönetir
+public class PolicyHistory
+{
+    private Stack<PolicyMemento> _policyHistory = new Stack<PolicyMemento>();
+
+    // Memento'yu saklar
+    public void Save(PolicyMemento memento)
+    {
+        _policyHistory.Push(memento);
+    }
+
+    // Memento'dan geri yükleme yapar
+    public PolicyMemento Undo()
+    {
+        if (_policyHistory.Count > 0)
         {
-            string selectedPolicy = _policyTypeDropdown.GetSelectedOption();
-            if (selectedPolicy == "Health")
-            {
-                ShowHealthPolicyForm();
-                HideVehiclePolicyForm();
-            }
-            else if (selectedPolicy == "Vehicle")
-            {
-                ShowVehiclePolicyForm();
-                HideHealthPolicyForm();
-            }
+            return _policyHistory.Pop();
         }
-
-        if (sender == _submitButton && ev == "click")
-        {
-            string policyType = _policyTypeDropdown.GetSelectedOption();
-            Console.WriteLine("Submitting " + policyType + " policy for customer: " + _customerName.Text);
-        }
-    }
-
-    private void ShowHealthPolicyForm()
-    {
-        Console.WriteLine("Showing Health Policy form.");
-        _healthDetails.Visible = true;
-    }
-
-    private void HideHealthPolicyForm()
-    {
-        Console.WriteLine("Hiding Health Policy form.");
-        _healthDetails.Visible = false;
-    }
-
-    private void ShowVehiclePolicyForm()
-    {
-        Console.WriteLine("Showing Vehicle Policy form.");
-        _vehicleDetails.Visible = true;
-    }
-
-    private void HideVehiclePolicyForm()
-    {
-        Console.WriteLine("Hiding Vehicle Policy form.");
-        _vehicleDetails.Visible = false;
+        return null; // Geri alınacak bir durum yoksa null döner
     }
 }
 
-// Base component class
-public class Component
-{
-    protected IMediator _mediator;
-
-    public Component(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
-    public void Click()
-    {
-        _mediator.Notify(this, "click");
-    }
-
-    public void Change()
-    {
-        _mediator.Notify(this, "change");
-    }
-}
-
-// Dropdown component
-public class Dropdown : Component
-{
-    private string _selectedOption;
-
-    public Dropdown(IMediator mediator) : base(mediator) { }
-
-    public void SelectOption(string option)
-    {
-        _selectedOption = option;
-        Change();
-    }
-
-    public string GetSelectedOption()
-    {
-        return _selectedOption;
-    }
-}
-
-// Textbox component
-public class Textbox : Component
-{
-    public string Text { get; set; }
-    public bool Visible { get; set; }
-
-    public Textbox(IMediator mediator) : base(mediator)
-    {
-        Visible = true;
-    }
-}
-
-// Button component
-public class Button : Component
-{
-    public Button(IMediator mediator) : base(mediator) { }
-}
-
-// Client code (Main program)
 class Program
 {
     static void Main(string[] args)
     {
-        PolicyManagementMediator mediator = new PolicyManagementMediator();
+        // Originator: Poliçe nesnesi
+        Policy policy = new Policy
+        {
+            PolicyNumber = "AXA123",
+            PolicyHolder = "John Doe",
+            PremiumAmount = 1000
+        };
 
-        // Kullanıcı Sağlık Sigortası seçiyor
-        Console.WriteLine("User selected Health Policy:");
-        Dropdown policyDropdown = new Dropdown(mediator);
-        policyDropdown.SelectOption("Health");
-        Button submitButton = new Button(mediator);
-        submitButton.Click();
+        // Caretaker: Poliçe geçmişini yöneten sınıf
+        PolicyHistory history = new PolicyHistory();
 
-        // Kullanıcı Araç Sigortası seçiyor
-        Console.WriteLine("\nUser selected Vehicle Policy:");
-        policyDropdown.SelectOption("Vehicle");
-        submitButton.Click();
+        // Poliçenin ilk halini kaydet
+        history.Save(policy.Save());
+
+        // Poliçe üzerinde değişiklik yapalım
+        policy.PremiumAmount = 1200;
+        policy.PolicyHolder = "Jane Doe";
+
+        Console.WriteLine("Poliçe güncellendikten sonra:");
+        policy.ShowPolicyDetails(); // Güncellenmiş poliçeyi göster
+
+        // Poliçenin bu halini de kaydet
+        history.Save(policy.Save());
+
+        // Bir hata oldu ve geri alma yapmak istiyoruz
+        Console.WriteLine("\nGeri alınıyor...");
+        policy.Restore(history.Undo());
+
+        // İlk haline geri dönmüş poliçeyi göster
+        policy.ShowPolicyDetails();
     }
 }
